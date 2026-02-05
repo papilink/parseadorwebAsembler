@@ -1,0 +1,20 @@
+{
+  "name": "msx2-processor",
+  "type": "module",
+  "collaborators": [
+    "Papiweb Desarrollos Informaticos"
+  ],
+  "description": "Advanced MSX2 sprite processor with post-processing effects: Bilinear interpolation, normal maps, and Sobel edge detection",
+  "version": "1.0.0",
+  "license": "MIT",
+  "files": [
+    "msx2_processor_bg.wasm",
+    "msx2_processor.js",
+    "msx2_processor.d.ts"
+  ],
+  "main": "msx2_processor.js",
+  "types": "msx2_processor.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

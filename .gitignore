@@ -1,0 +1,38 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# WASM
+# Nota: pkg/ se commitea para GitHub Pages
+dist/
+.wasm-pack/
+
+# Node.js / NPM
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.env.local
+
+# Build outputs
+*.wasm
+*.js
+*.d.ts
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporal
+tmp/
+temp/
+*.tmp

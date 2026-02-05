@@ -1,0 +1,12 @@
+[build]
+rustflags = ["-C", "target-cpu=native"]
+
+[install]
+default-features = true
+
+# Configuración para WASM
+[target.wasm32-unknown-unknown]
+rustflags = [
+    "-C", "link-arg=--no-entry",
+    "-C", "opt-level=z"
+]

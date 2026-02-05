@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 MSX2 ROM Viewer - PAPIWEB</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00ff41;
+            --primary-dark: #00cc34;
+            --primary-light: #00ff6a;
+            --bg-dark: #0a0e27;
+            --bg-darker: #050810;
+            --text-light: #e0e6ff;
+            --text-secondary: #a0aac0;
+            --accent: #ff006e;
+            --success: #00d4ff;
+            --warning: #ffa500;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%);
+            color: var(--text-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            color: var(--primary);
+            text-shadow: 0 0 20px var(--primary);
+            margin-bottom: 5px;
+            letter-spacing: 2px;
+        }
+
+        .header p {
+            color: var(--success);
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+
+        .header .papiweb {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--primary);
+        }
+
+        /* Container Principal */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            grid-auto-rows: min-content;
+        }
+
+        /* Controls Panel */
+        .control-panel {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+            border-radius: 10px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-panel h2 {
+            color: var(--primary);
+            margin-bottom: 25px;
+            font-size: 1.4em;
+            text-shadow: 0 0 10px var(--primary);
+        }
+
+        /* File Input Styling */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.1), rgba(0, 212, 255, 0.1));
+            border: 2px dashed var(--primary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .file-input-label:hover {
+            border-color: var(--primary-light);
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.2), rgba(0, 212, 255, 0.2));
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .file-input-label.dragover {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(255, 0, 110, 0.2), rgba(255, 165, 0, 0.2));
+            box-shadow: 0 0 30px rgba(255, 0, 110, 0.4);
+        }
+
+        /* Buttons */
+        button {
+            width: 100%;
+            padding: 15px 20px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: var(--bg-darker);
+            box-shadow: 0 5px 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            box-shadow: 0 8px 30px rgba(0, 255, 65, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(0, 212, 255, 0.2);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: rgba(0, 212, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        /* Info Panel */
+        .info-panel {
+            background: rgba(0, 0, 0, 0.4);
+            border-left: 3px solid var(--success);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .info-title {
+            color: var(--success);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .info-content {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .info-content .label {
+            color: var(--text-light);
+            display: inline-block;
+            width: 100px;
+        }
+
+        /* Canvas Area */
+        .canvas-wrapper {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+
+        .canvas-wrapper h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            align-self: flex-start;
+            font-size: 1.2em;
+        }
+
+        canvas {
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            background: #000;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+            max-width: 100%;
+            height: auto;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Status Indicators */
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-size: 0.95em;
+        }
+
+        .status.loading {
+            background: rgba(255, 165, 0, 0.1);
+            color: var(--warning);
+            border-left: 3px solid var(--warning);
+        }
+
+        .status.success {
+            background: rgba(0, 255, 65, 0.1);
+            color: var(--primary);
+            border-left: 3px solid var(--primary);
+        }
+
+        .status.error {
+            background: rgba(255, 0, 110, 0.1);
+            color: var(--accent);
+            border-left: 3px solid var(--accent);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status.loading .status-dot {
+            background: var(--warning);
+            animation: pulse 1.5s infinite;
+        }
+
+        .status.success .status-dot {
+            background: var(--primary);
+        }
+
+        .status.error .status-dot {
+            background: var(--accent);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+
+        /* Canvas Placeholder */
+        .canvas-placeholder {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .canvas-placeholder p {
+            margin: 10px 0;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: var(--text-secondary);
+            border-top: 1px solid rgba(0, 255, 65, 0.2);
+            font-size: 0.9em;
+        }
+
+        .footer strong {
+            color: var(--primary);
+        }
+
+        /* Loading Animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0, 255, 65, 0.3);
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Grid responsivo */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            body {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🎮 MSX2 ROM VIEWER</h1>
+        <p>✨ WebAssembly Sprite Processor</p>
+        <div class="papiweb">
+            © 2026 PAPIWEB DESARROLLOS INFORMATICOS
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <h2>📁 Cargar ROM</h2>
+
+            <!-- File Input -->
+            <div class="file-input-wrapper">
+                <input 
+                    type="file" 
+                    id="fileInput" 
+                    accept=".rom,.bin,.dat" 
+                    aria-label="Cargar archivo ROM"
+                >
+                <label for="fileInput" class="file-input-label" id="fileLabel">
+                    <span>📂 Selecciona o arrastra tu archivo .rom</span>
+                </label>
+            </div>
+
+            <!-- File Info -->
+            <div id="fileInfo" class="info-panel" style="display: none;">
+                <div class="info-title">📋 Información del Archivo</div>
+                <div class="info-content">
+                    <div><span class="label">Nombre:</span> <span id="fileName">-</span></div>
+                    <div><span class="label">Tamaño:</span> <span id="fileSize">-</span></div>
+                    <div><span class="label">Tipo:</span> <span id="fileType">-</span></div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div id="status" style="display: none;"></div>
+
+            <!-- Process Buttons -->
+            <button id="processBtn" class="btn-primary" disabled>
+                ⚡ PROCESAR RGBA
+            </button>
+
+            <button id="processFullBtn" class="btn-primary" disabled>
+                🌟 PROCESAMIENTO COMPLETO
+            </button>
+
+            <button id="clearBtn" class="btn-secondary" style="display: none;">
+                🗑️ Limpiar
+            </button>
+
+            <!-- Analysis Panel -->
+            <div id="analysisPanel" class="info-panel" style="display: none; margin-top: 20px;">
+                <div class="info-title">📊 Análisis</div>
+                <div class="info-content">
+                    <div><span class="label">Bytes:</span> <span id="bytesCount">0</span></div>
+                    <div><span class="label">Píxeles:</span> <span id="pixelCount">0</span></div>
+                    <div><span class="label">Resolución:</span> <span id="resolution">256×212</span></div>
+                    <div><span class="label">Tiempo:</span> <span id="processTime">-</span></div>
+                </div>
+            </div>
+
+            <!-- Mode Selection -->
+            <div style="margin-top: 25px; padding-top: 25px; border-top: 1px solid rgba(0, 255, 65, 0.2);">
+                <h3 style="color: var(--success); margin-bottom: 15px; font-size: 0.95em;">⚙️ Opciones</h3>
+                
+                <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer; color: var(--text-light);">
+                    <input type="checkbox" id="enableBilinear" checked>
+                    <span>Interpolación Bilineal (4K)</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer; color: var(--text-light);">
+                    <input type="checkbox" id="enableNormals">
+                    <span>Normal Maps</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer; color: var(--text-light);">
+                    <input type="checkbox" id="enableEdges">
+                    <span>Detección Sobel</span>
+                </label>
+
+                <label style="display: flex; align-items: center; gap: 10px; margin: 10px 0; cursor: pointer; color: var(--text-light);">
+                    <span>Intensidad Glow:</span>
+                    <input type="range" id="glowIntensity" min="0" max="3" step="0.1" value="1.5" style="flex: 1; margin-left: 10px;">
+                    <span id="glowValue" style="width: 30px; text-align: right; color: var(--primary);">1.5</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="canvas-wrapper">
+            <h2>🖼️ Vista Previa</h2>
+            <div id="canvasContainer" style="width: 100%; display: flex; justify-content: center;">
+                <div class="canvas-placeholder">
+                    <p>📂 Carga un archivo ROM</p>
+                    <p style="font-size: 0.85em; margin-top: 10px; color: var(--text-secondary);">
+                        o arrastra un archivo .rom aquí
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>
+            <strong>🌐 WebAssembly</strong> • 
+            <strong>⚡ Rust</strong> • 
+            <strong>💾 MSX2 Sprites</strong>
+        </p>
+        <p style="margin-top: 10px;">
+            Powered by <strong>PAPIWEB DESARROLLOS INFORMATICOS</strong> © 2026
+        </p>
+    </div>
+
+    <!-- WASM Module -->
+    <script type="module">
+        import init, { MSX2Processor, PostProcessResult } from './pkg/msx2_processor.js';
+
+        // ═══════════════════════════════════════════════════════════════
+        // INICIALIZACIÓN
+        // ═══════════════════════════════════════════════════════════════
+
+        let processor = null;
+        let currentRomData = null;
+        let currentFileName = '';
+
+        async function initializeWasm() {
+            try {
+                showStatus('Inicializando WebAssembly...', 'loading');
+                await init();
+                processor = new MSX2Processor(256, 212);
+                showStatus('✅ WASM inicializado correctamente', 'success');
+                console.log('✅ WASM cargado exitosamente');
+            } catch (err) {
+                console.error('❌ Error inicializando WASM:', err);
+                showStatus('❌ Error al inicializar WebAssembly', 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // MANEJO DE ARCHIVOS
+        // ═══════════════════════════════════════════════════════════════
+
+        const fileInput = document.getElementById('fileInput');
+        const fileLabel = document.getElementById('fileLabel');
+
+        // Click en input
+        fileLabel.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Seleccionar archivo
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelect(file);
+            }
+        });
+
+        // Drag and drop
+        fileLabel.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileLabel.classList.add('dragover');
+        });
+
+        fileLabel.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileLabel.classList.remove('dragover');
+        });
+
+        fileLabel.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileLabel.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect(files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            currentFileName = file.name;
+            const reader = new FileReader();
+
+            reader.onload = (e) => {
+                currentRomData = new Uint8Array(e.target.result);
+                displayFileInfo(file, currentRomData);
+                enableProcessButtons();
+                hideStatus();
+            };
+
+            reader.onerror = () => {
+                showStatus('❌ Error al leer el archivo', 'error');
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INFORMACIÓN DEL ARCHIVO
+        // ═══════════════════════════════════════════════════════════════
+
+        function displayFileInfo(file, data) {
+            document.getElementById('fileInfo').style.display = 'block';
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatBytes(file.size);
+            document.getElementById('fileType').textContent = file.type || 'application/octet-stream';
+
+            document.getElementById('analysisPanel').style.display = 'block';
+            document.getElementById('bytesCount').textContent = data.length.toLocaleString();
+            document.getElementById('pixelCount').textContent = (data.length * 2).toLocaleString();
+            document.getElementById('clearBtn').style.display = 'block';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // PROCESAMIENTO
+        // ═══════════════════════════════════════════════════════════════
+
+        document.getElementById('processBtn').addEventListener('click', () => {
+            processRomData(false);
+        });
+
+        document.getElementById('processFullBtn').addEventListener('click', () => {
+            processRomData(true);
+        });
+
+        function processRomData(useFull) {
+            if (!processor || !currentRomData) {
+                showStatus('❌ ROM no cargada', 'error');
+                return;
+            }
+
+            showStatus('Procesando...', 'loading');
+            const startTime = performance.now();
+
+            try {
+                let rgba;
+
+                if (useFull) {
+                    // Procesamiento completo con opciones
+                    const enableBilinear = document.getElementById('enableBilinear').checked;
+                    const enableNormals = document.getElementById('enableNormals').checked;
+                    const enableEdges = document.getElementById('enableEdges').checked;
+                    const glowIntensity = parseFloat(document.getElementById('glowIntensity').value);
+
+                    const result = processor.process_with_post_effects(
+                        currentRomData,
+                        enableBilinear,
+                        enableNormals,
+                        enableEdges,
+                        glowIntensity
+                    );
+
+                    rgba = result.get_rgba();
+
+                    // Log de información
+                    console.log('📊 Procesamiento Completo:');
+                    console.log('  RGBA:', rgba.length, 'bytes');
+                    console.log('  Normals:', result.get_normals().length, 'bytes');
+                    console.log('  Edges:', result.get_edges().length, 'valores');
+                } else {
+                    // Solo RGBA conversion
+                    rgba = processor.transform_to_rgba(currentRomData);
+                    console.log('📊 Conversión RGBA: ', rgba.length, 'bytes');
+                }
+
+                // Renderizar en canvas
+                renderToCanvas(rgba);
+
+                const endTime = performance.now();
+                const processingTime = (endTime - startTime).toFixed(2);
+
+                document.getElementById('processTime').textContent = processingTime + 'ms';
+                showStatus(`✅ Procesado en ${processingTime}ms`, 'success');
+                hideStatusAfter(3000);
+
+            } catch (err) {
+                console.error('❌ Error procesando:', err);
+                showStatus(`❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // RENDERIZADO EN CANVAS
+        // ═══════════════════════════════════════════════════════════════
+
+        function renderToCanvas(rgbaData) {
+            const canvasContainer = document.getElementById('canvasContainer');
+            canvasContainer.innerHTML = '';
+
+            const enableBilinear = document.getElementById('enableBilinear').checked;
+            const width = enableBilinear ? 3840 : 256;
+            const height = enableBilinear ? 2160 : 212;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.createImageData(width, height);
+
+            // Copiar datos RGBA al canvas
+            imageData.data.set(rgbaData);
+            ctx.putImageData(imageData, 0, 0);
+
+            canvasContainer.appendChild(canvas);
+
+            console.log(`🖼️ Canvas renderizado: ${width}×${height}`);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UTILIDADES DE UI
+        // ═══════════════════════════════════════════════════════════════
+
+        function enableProcessButtons() {
+            document.getElementById('processBtn').disabled = false;
+            document.getElementById('processFullBtn').disabled = false;
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.innerHTML = `
+                <div class="status ${type}">
+                    <span class="status-dot"></span>
+                    <span>${message}</span>
+                </div>
+            `;
+            statusEl.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        function hideStatusAfter(ms) {
+            setTimeout(hideStatus, ms);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        document.getElementById('glowIntensity').addEventListener('input', (e) => {
+            document.getElementById('glowValue').textContent = e.target.value;
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            currentRomData = null;
+            fileInput.value = '';
+            document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('analysisPanel').style.display = 'none';
+            document.getElementById('clearBtn').style.display = 'none';
+            document.getElementById('canvasContainer').innerHTML = `
+                <div class="canvas-placeholder">
+                    <p>📂 Carga un archivo ROM</p>
+                    <p style="font-size: 0.85em; margin-top: 10px; color: var(--text-secondary);">
+                        o arrastra un archivo .rom aquí
+                    </p>
+                </div>
+            `;
+            document.getElementById('processBtn').disabled = true;
+            document.getElementById('processFullBtn').disabled = true;
+            hideStatus();
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // INICIAR APLICACIÓN
+        // ═══════════════════════════════════════════════════════════════
+
+        console.log('🚀 Iniciando MSX2 ROM Viewer v1.0');
+        console.log('© 2026 PAPIWEB DESARROLLOS INFORMATICOS');
+        initializeWasm();
+    </script>
+</body>
+</html>

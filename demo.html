@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSX2 ROM Viewer - Demo con Datos de Prueba</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #00ff41;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #00ff41;
+            text-shadow: 0 0 10px #00ff41;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #00ff41;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #00ff41;
+            border-radius: 12px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel h2 {
+            color: #00ff41;
+            margin-bottom: 20px;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0a0a0;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #00ff41;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: #00ff41;
+            height: 6px;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            color: #00ff41;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #00ff41;
+            background: rgba(0, 255, 65, 0.1);
+            color: #00ff41;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .canvas-container {
+            background: #000;
+            border: 2px solid #00ff41;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            overflow: auto;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            image-rendering: pixelated;
+            border: 1px solid #00ff41;
+            background: #111;
+        }
+
+        .info-panel {
+            background: rgba(0, 255, 65, 0.05);
+            border-left: 4px solid #00ff41;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .info-label {
+            color: #00ff41;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+
+        .info-value {
+            color: #c0c0c0;
+            margin-left: 10px;
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .status.loading {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid #ffc107;
+            color: #ffc107;
+        }
+
+        .status.success {
+            background: rgba(0, 255, 65, 0.2);
+            border: 1px solid #00ff41;
+            color: #00ff41;
+        }
+
+        .status.error {
+            background: rgba(255, 65, 65, 0.2);
+            border: 1px solid #ff4141;
+            color: #ff4141;
+        }
+
+        .demo-info {
+            background: rgba(0, 150, 255, 0.1);
+            border-left: 4px solid #0096ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #a8d5ff;
+        }
+
+        .demo-info strong {
+            color: #0096ff;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #00ff41;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .footer-brand {
+            color: #00ff41;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">🎮 MSX2 ROM VIEWER</div>
+            <div class="subtitle">© 2026 PAPIWEB DESARROLLOS INFORMATICOS</div>
+        </header>
+
+        <!-- Demo Info -->
+        <div class="demo-info">
+            <strong>⚠️ Modo Demo:</strong> Esta página genera datos de prueba simulados para demostrar la interfaz. 
+            Para procesar archivos ROM reales, carga archivos .rom/.bin desde <strong>index.html</strong>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Control Panel -->
+            <div class="panel">
+                <h2>⚙️ Controles</h2>
+
+                <div class="status success" id="status">
+                    ✓ WASM Demo Listo
+                </div>
+
+                <div class="control-group">
+                    <label>Opciones de Procesamiento:</label>
+                    
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="bilinear" checked>
+                        <label for="bilinear" style="margin: 0;">Interpolación Bilineal (4K)</label>
+                    </div>
+
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="normals">
+                        <label for="normals" style="margin: 0;">Normal Maps</label>
+                    </div>
+
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="edges">
+                        <label for="edges" style="margin: 0;">Detección Sobel</label>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Intensidad Glow Neón:</label>
+                    <div class="slider-container">
+                        <input type="range" id="glowIntensity" min="0" max="3" step="0.1" value="1.5">
+                        <div class="slider-value" id="glowValue">1.5</div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Resolución Canvas:</label>
+                    <div class="checkbox-container">
+                        <input type="radio" name="resolution" id="res256" value="256" checked>
+                        <label for="res256" style="margin: 0;">256×212 (Original)</label>
+                    </div>
+                    <div class="checkbox-container">
+                        <input type="radio" name="resolution" id="res3840" value="3840">
+                        <label for="res3840" style="margin: 0;">3840×2160 (4K)</label>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button id="generateDemo">⚡ Generar Demo</button>
+                    <button id="resetDemo">🔄 Limpiar</button>
+                </div>
+            </div>
+
+            <!-- Info Panel -->
+            <div class="panel">
+                <h2>📊 Información</h2>
+
+                <div class="info-panel">
+                    <div class="info-label">Estado:</div>
+                    <div class="info-value" id="infoStatus">Esperando entrada...</div>
+                </div>
+
+                <div class="info-panel">
+                    <div class="info-label">Datos Demo:</div>
+                    <div class="info-value" id="infoDemoData">No generado</div>
+                </div>
+
+                <div class="info-panel">
+                    <div class="info-label">Resolución Canvas:</div>
+                    <div class="info-value" id="infoResolution">-</div>
+                </div>
+
+                <div class="info-panel">
+                    <div class="info-label">Tiempo Procesamiento:</div>
+                    <div class="info-value" id="infoTime">-</div>
+                </div>
+
+                <div class="info-panel">
+                    <div class="info-label">Píxeles Procesados:</div>
+                    <div class="info-value" id="infoPixels">-</div>
+                </div>
+
+                <div class="info-panel">
+                    <div class="info-label">Espacio usado RGBA:</div>
+                    <div class="info-value" id="infoSize">-</div>
+                </div>
+
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(0, 255, 65, 0.2);">
+                    <p style="font-size: 12px; color: #888; line-height: 1.6;">
+                        <strong style="color: #00ff41;">💡 Nota:</strong> Los datos mostrados son simulados para demostración. 
+                        El procesamiento real ocurriría con archivos ROM verdaderos usando wasm-bindgen.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="panel">
+            <h2>🎨 Canvas Preview</h2>
+            <div class="canvas-container">
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>
+                <span class="footer-brand">PAPIWEB DESARROLLOS INFORMATICOS</span> © 2026 | 
+                Transformando gráficos retro en arte digital moderno
+            </p>
+            <p style="margin-top: 10px; font-size: 11px;">
+                Para procesar archivos ROM reales: 
+                <code style="background: #1a1a2e; padding: 3px 6px; border-radius: 3px;">python3 server.py</code> 
+                y accede a 
+                <code style="background: #1a1a2e; padding: 3px 6px; border-radius: 3px;">http://localhost:8080</code>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Demo WASM Simulator
+        class DemoMSX2Processor {
+            constructor(width, height) {
+                this.width = width;
+                this.height = height;
+                this.palette = this.generatePalette();
+            }
+
+            generatePalette() {
+                // MSX2 16 color palette
+                return [
+                    [0, 0, 0],           // 0: Negro
+                    [0, 0, 0],           // 1: Negro (duplicado)
+                    [33, 200, 66],       // 2: Verde
+                    [66, 220, 140],      // 3: Verde claro
+                    [33, 33, 200],       // 4: Azul oscuro
+                    [66, 140, 220],      // 5: Azul claro
+                    [200, 33, 33],       // 6: Rojo oscuro
+                    [66, 220, 220],      // 7: Cian
+                    [220, 66, 66],       // 8: Rojo claro
+                    [220, 140, 140],     // 9: Rojo muy claro
+                    [220, 220, 33],      // 10: Amarillo oscuro
+                    [220, 220, 140],     // 11: Amarillo claro
+                    [33, 140, 33],       // 12: Verde oscuro
+                    [220, 66, 220],      // 13: Magenta
+                    [220, 220, 220],     // 14: Blanco
+                    [255, 255, 255]      // 15: Blanco brillante
+                ];
+            }
+
+            generateRandomColorData(width, height) {
+                const data = new Uint8Array(width * height);
+                for (let i = 0; i < data.length; i++) {
+                    data[i] = Math.floor(Math.random() * 16);
+                }
+                return data;
+            }
+
+            convertTo4bpp(width, height) {
+                const data = new Uint8Array(width * height);
+                // Crear patrón visual interesante
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const idx = y * width + x;
+                        // Patrón de degradado + puntos aleatorios
+                        const gradient = Math.floor((x / width) * 15);
+                        const random = Math.random() > 0.95 ? Math.floor(Math.random() * 16) : 0;
+                        data[idx] = (gradient + random) % 16;
+                    }
+                }
+                return data;
+            }
+
+            transformToRgba(colorData, bilinear = false) {
+                const srcWidth = this.width;
+                const srcHeight = this.height;
+                
+                let dstWidth = srcWidth;
+                let dstHeight = srcHeight;
+
+                if (bilinear) {
+                    dstWidth = srcWidth * 15; // 256 × 15 = 3840
+                    dstHeight = srcHeight * 10.18; // 212 × 10.18 ≈ 2160
+                }
+
+                const rgba = new Uint8Array(dstWidth * dstHeight * 4);
+
+                if (bilinear) {
+                    // Bilinear interpolation
+                    for (let y = 0; y < dstHeight; y++) {
+                        for (let x = 0; x < dstWidth; x++) {
+                            const srcX = (x / dstWidth) * srcWidth;
+                            const srcY = (y / dstHeight) * srcHeight;
+
+                            const x0 = Math.floor(srcX);
+                            const y0 = Math.floor(srcY);
+                            const x1 = Math.min(x0 + 1, srcWidth - 1);
+                            const y1 = Math.min(y0 + 1, srcHeight - 1);
+
+                            const fx = srcX - x0;
+                            const fy = srcY - y0;
+
+                            const c00 = colorData[y0 * srcWidth + x0];
+                            const c10 = colorData[y0 * srcWidth + x1];
+                            const c01 = colorData[y1 * srcWidth + x0];
+                            const c11 = colorData[y1 * srcWidth + x1];
+
+                            const c = Math.round(
+                                c00 * (1 - fx) * (1 - fy) +
+                                c10 * fx * (1 - fy) +
+                                c01 * (1 - fx) * fy +
+                                c11 * fx * fy
+                            );
+
+                            const color = this.palette[c];
+                            const idx = (y * dstWidth + x) * 4;
+                            rgba[idx] = color[0];
+                            rgba[idx + 1] = color[1];
+                            rgba[idx + 2] = color[2];
+                            rgba[idx + 3] = 255;
+                        }
+                    }
+                } else {
+                    // Direct mapping
+                    for (let i = 0; i < colorData.length; i++) {
+                        const color = this.palette[colorData[i]];
+                        rgba[i * 4] = color[0];
+                        rgba[i * 4 + 1] = color[1];
+                        rgba[i * 4 + 2] = color[2];
+                        rgba[i * 4 + 3] = 255;
+                    }
+                }
+
+                return rgba;
+            }
+
+            applyNeonGlow(rgba, width, height, intensity = 1.0) {
+                const result = new Uint8Array(rgba);
+                const kernel = [
+                    [0.05, 0.1, 0.05],
+                    [0.1, 0.4, 0.1],
+                    [0.05, 0.1, 0.05]
+                ];
+
+                for (let y = 1; y < height - 1; y++) {
+                    for (let x = 1; x < width - 1; x++) {
+                        let r = 0, g = 0, b = 0;
+                        
+                        for (let ky = -1; ky <= 1; ky++) {
+                            for (let kx = -1; kx <= 1; kx++) {
+                                const idx = ((y + ky) * width + (x + kx)) * 4;
+                                const weight = kernel[ky + 1][kx + 1];
+                                r += result[idx] * weight;
+                                g += result[idx + 1] * weight;
+                                b += result[idx + 2] * weight;
+                            }
+                        }
+
+                        const idx = (y * width + x) * 4;
+                        result[idx] = Math.min(255, result[idx] + r * intensity);
+                        result[idx + 1] = Math.min(255, result[idx + 1] + g * intensity);
+                        result[idx + 2] = Math.min(255, result[idx + 2] + b * intensity);
+                    }
+                }
+
+                return result;
+            }
+        }
+
+        // UI State
+        let processor = new DemoMSX2Processor(256, 212);
+        let currentRgbaData = null;
+        let currentCanvasWidth = 256;
+        let currentCanvasHeight = 212;
+
+        // Elements
+        const generateBtn = document.getElementById('generateDemo');
+        const resetBtn = document.getElementById('resetDemo');
+        const bilinearCheckbox = document.getElementById('bilinear');
+        const normalsCheckbox = document.getElementById('normals');
+        const edgesCheckbox = document.getElementById('edges');
+        const glowSlider = document.getElementById('glowIntensity');
+        const glowValue = document.getElementById('glowValue');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+
+        // Update glow value display
+        glowSlider.addEventListener('input', (e) => {
+            glowValue.textContent = parseFloat(e.target.value).toFixed(1);
+        });
+
+        // Generate Demo
+        generateBtn.addEventListener('click', () => {
+            const startTime = performance.now();
+            
+            // Update status
+            status.textContent = '⏳ Generando datos...' ;
+            status.className = 'status loading';
+
+            setTimeout(() => {
+                try {
+                    // Get options
+                    const bilinear = bilinearCheckbox.checked;
+                    const glow = glowSlider.value;
+                    
+                    // Determine canvas size
+                    currentCanvasWidth = bilinear ? 3840 : 256;
+                    currentCanvasHeight = bilinear ? 2160 : 212;
+
+                    // Generate demo data
+                    const colorData = processor.convertTo4bpp(256, 212);
+                    
+                    // Transform to RGBA
+                    currentRgbaData = processor.transformToRgba(colorData, bilinear);
+
+                    // Apply glow if needed
+                    if (glow > 0.1 && (edgesCheckbox.checked || true)) {
+                        currentRgbaData = processor.applyNeonGlow(
+                            currentRgbaData,
+                            currentCanvasWidth,
+                            currentCanvasHeight,
+                            parseFloat(glow)
+                        );
+                    }
+
+                    // Render to canvas
+                    canvas.width = currentCanvasWidth;
+                    canvas.height = currentCanvasHeight;
+                    
+                    const imageData = ctx.createImageData(currentCanvasWidth, currentCanvasHeight);
+                    imageData.data.set(currentRgbaData);
+                    ctx.putImageData(imageData, 0, 0);
+
+                    // Update info
+                    const elapsed = (performance.now() - startTime).toFixed(2);
+                    document.getElementById('infoStatus').textContent = '✓ Demo generado exitosamente';
+                    document.getElementById('infoDemoData').textContent = '256×212 (4bpp) simulado';
+                    document.getElementById('infoResolution').textContent = `${currentCanvasWidth}×${currentCanvasHeight}`;
+                    document.getElementById('infoTime').textContent = `${elapsed}ms`;
+                    document.getElementById('infoPixels').textContent = `${currentCanvasWidth * currentCanvasHeight}.into()`;
+                    document.getElementById('infoSize').textContent = `${(currentRgbaData.length / 1024).toFixed(2)} KB`;
+
+                    // Update status
+                    status.textContent = '✓ Demo procesado correctamente';
+                    status.className = 'status success';
+                } catch (error) {
+                    status.textContent = '✗ Error: ' + error.message;
+                    status.className = 'status error';
+                    console.error(error);
+                }
+            }, 100);
+        });
+
+        // Reset
+        resetBtn.addEventListener('click', () => {
+            canvas.width = 256;
+            canvas.height = 212;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, 256, 212);
+            
+            currentRgbaData = null;
+            document.getElementById('infoStatus').textContent = 'Esperando entrada...';
+            document.getElementById('infoDemoData').textContent = 'No generado';
+            document.getElementById('infoResolution').textContent = '-';
+            document.getElementById('infoTime').textContent = '-';
+            document.getElementById('infoPixels').textContent = '-';
+            document.getElementById('infoSize').textContent = '-';
+            
+            status.textContent = '✓ WASM Demo Listo';
+            status.className = 'status success';
+        });
+
+        // Initialize
+        canvas.width = 256;
+        canvas.height = 212;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, 256, 212);
+    </script>
+</body>
+</html>

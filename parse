@@ -1,0 +1,36 @@
+/// Papiweb desarrollos informaticos
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub struct MSX2Processor {
+    palette: [[u8; 4]; 16], // Paleta de 16 colores (RGBA)
+}
+
+#[wasm_bindgen]
+impl MSX2Processor {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        // Paleta de ejemplo (puedes cargar la original del MSX2)
+        let mut palette = [[0; 4]; 16];
+        palette[1] = [255, 0, 0, 255]; // Rojo
+        palette[2] = [0, 255, 0, 255]; // Verde
+        // ... rellenar el resto
+        MSX2Processor { palette }
+    }
+
+    /// Convierte datos binarios de MSX2 (4bpp) a RGBA (32bpp)
+    pub fn transform_to_rgba(&self, bin_data: &[u8]) -> Vec<u8> {
+        let mut rgba_output = Vec::with_capacity(bin_data.len() * 8);
+
+        for &byte in bin_data {
+            // Extraer dos píxeles de 4 bits cada uno (Formato MSX2 Screen 5)
+            let pixel1 = (byte >> 4) & 0x0F;
+            let pixel2 = byte & 0x0F;
+
+            // Mapear a la paleta "avanzada"
+            rgba_output.extend_from_slice(&self.palette[pixel1 as usize]);
+            rgba_output.extend_from_slice(&self.palette[pixel2 as usize]);
+        }
+        rgba_output
+    }
+}
