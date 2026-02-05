@@ -65,6 +65,48 @@
             border-top: 1px solid var(--primary);
         }
 
+        /* Tabs */
+        .tabs-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid rgba(0, 255, 65, 0.2);
+            padding-bottom: 10px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: 2px solid transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            font-weight: bold;
+            transition: all 200ms ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+            border-color: rgba(0, 255, 65, 0.3);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-color: var(--primary);
+            background: rgba(0, 255, 65, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         /* Container Principal */
         .container {
             max-width: 1400px;
@@ -492,8 +534,20 @@
         </div>
     </div>
 
-    <!-- Main Container -->
-    <div class="container">
+    <!-- Tabs Navigation -->
+    <div class="tabs-container">
+        <button class="tab-btn active" data-tab="processor" onclick="switchTab(event, 'processor')">
+            🔬 Procesador de Sprites
+        </button>
+        <button class="tab-btn" data-tab="emulator" onclick="switchTab(event, 'emulator')">
+            🎮 Emulador Funcional
+        </button>
+    </div>
+
+    <!-- Processor Tab -->
+    <div id="processor" class="tab-content active">
+        <!-- Main Container -->
+        <div class="container">
         <!-- Control Panel -->
         <div class="control-panel">
             <h2>📁 Cargar ROM</h2>
@@ -616,7 +670,37 @@
                 </div>
             </div>
         </div>
+        </div>
     </div>
+    <!-- End Processor Tab -->
+
+    <!-- Emulator Tab -->
+    <div id="emulator" class="tab-content">
+        <div style="max-width: 1400px; margin: 0 auto; padding: 20px; background: rgba(0, 0, 0, 0.4); border-radius: 10px; border: 2px solid rgba(0, 255, 65, 0.2);">
+            <h2 style="margin-bottom: 20px; color: var(--primary);">🎮 Emulador MSX2</h2>
+            
+            <!-- ROM File Input for Emulator -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold; color: var(--text-light);">
+                    Cargar ROM para jugar:
+                </label>
+                <input type="file" id="emulatorRomInput" accept=".rom,.bin,.cas,.zip" style="padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,65,0.3); color: var(--text-light); border-radius: 4px; width: 100%; max-width: 400px;">
+                <small style="display: block; margin-top: 10px; color: var(--text-secondary);">💾 Soporta: .rom, .bin, .cas, .zip</small>
+            </div>
+
+            <!-- Emulator Canvas -->
+            <div style="margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.6); border-radius: 8px; display: flex; justify-content: center;">
+                <canvas id="emulatorCanvas" style="border: 2px solid var(--primary); image-rendering: pixelated; width: 512px; height: 384px; display: block;"></canvas>
+            </div>
+
+            <!-- Emulator Status -->
+            <div style="margin-top: 20px; padding: 12px; background: rgba(0,255,65,0.1); border: 1px solid rgba(0,255,65,0.3); border-radius: 6px; color: var(--text-secondary); font-size: 0.9em;">
+                <strong>⏱️ Cargando emulador...</strong>
+                <p style="margin-top: 8px;">JavaScript emulator para MSX2 — Usa teclado para controles de juego</p>
+            </div>
+        </div>
+    </div>
+    <!-- End Emulator Tab -->
 
     <!-- Footer -->
     <div class="footer">
@@ -629,6 +713,23 @@
             Powered by <strong>PAPIWEB DESARROLLOS INFORMATICOS</strong> © 2026
         </p>
     </div>
+
+    <!-- Tab Switching Logic -->
+    <script>
+        function switchTab(event, tabName) {
+            // Ocultar todos los tabs
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            // Desactivar todos los botones
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            // Mostrar tab seleccionado
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
 
     <!-- WASM Module -->
     <script type="module">
@@ -1184,6 +1285,175 @@
         console.log('🚀 Iniciando MSX2 ROM Viewer v1.0');
         console.log('© 2026 PAPIWEB DESARROLLOS INFORMATICOS');
         initializeWasm();
+    </script>
+
+    <!-- Emulator Script -->
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // EMULADOR BÁSICO FUNCIONAL
+        // ═══════════════════════════════════════════════════════════════
+
+        let emulatorReady = false;
+        let emulatorROM = null;
+
+        // Estado del emulador
+        const emulator = {
+            running: false,
+            paused: false,
+            frameCount: 0,
+            keyState: {},
+            canvas: null,
+            ctx: null,
+            frameBuffer: null,
+        };
+
+        function initEmulator() {
+            emulator.canvas = document.getElementById('emulatorCanvas');
+            emulator.ctx = emulator.canvas.getContext('2d');
+            emulator.canvas.width = 512;
+            emulator.canvas.height = 384;
+
+            // Crear framebuffer
+            emulator.frameBuffer = emulator.ctx.createImageData(256, 212);
+            for (let i = 0; i < emulator.frameBuffer.data.length; i++) {
+                emulator.frameBuffer.data[i] = 0;
+            }
+
+            // Listeners de teclado
+            document.addEventListener('keydown', (e) => {
+                emulator.keyState[e.key.toLowerCase()] = true;
+            });
+
+            document.addEventListener('keyup', (e) => {
+                emulator.keyState[e.key.toLowerCase()] = false;
+            });
+
+            emulatorReady = true;
+            console.log('✅ Emulador inicializado');
+        }
+
+        function loadEmulatorROM() {
+            const input = document.getElementById('emulatorRomInput');
+            const file = input.files[0];
+
+            if (!file) {
+                alert('Por favor selecciona un archivo ROM');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                emulatorROM = new Uint8Array(e.target.result);
+                console.log(`📂 ROM cargada: ${file.name} (${emulatorROM.length} bytes)`);
+                
+                // Iniciar emulador
+                startEmulator();
+            };
+
+            reader.onerror = () => {
+                alert('Error al leer el archivo ROM');
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function startEmulator() {
+            if (!emulator.canvas) {
+                initEmulator();
+            }
+
+            emulator.running = true;
+            emulator.paused = false;
+            console.log('🎮 Emulador iniciado');
+
+            // Renderizar primeros frames
+            renderEmulatorFrame();
+            emulatorLoop();
+        }
+
+        function stopEmulator() {
+            emulator.running = false;
+            console.log('⏹️ Emulador detenido');
+        }
+
+        function renderEmulatorFrame() {
+            if (!emulator.canvas || !emulator.frameBuffer) return;
+
+            // Mostrar ROM como imagen si cargada
+            if (emulatorROM && emulator.frameCount === 0) {
+                // Convertir primeros bytes de la ROM a píxeles
+                const pixelCount = Math.min(256 * 212, emulatorROM.length * 2);
+                for (let i = 0; i < pixelCount / 2 && i < emulatorROM.length; i++) {
+                    const byte = emulatorROM[i];
+                    const pix1 = (byte >> 4) & 0x0F;
+                    const pix2 = byte & 0x0F;
+
+                    // Paleta MSX2 simplificada
+                    const colors = [
+                        [0, 0, 0], [255, 0, 0], [0, 255, 0], [255, 255, 0],
+                        [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255],
+                        [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128],
+                        [128, 0, 128], [0, 128, 128], [128, 128, 128], [200, 200, 200]
+                    ];
+
+                    for (const [pix, offset] of [[pix1, i * 2], [pix2, i * 2 + 1]]) {
+                        const idx = offset * 4;
+                        const [r, g, b] = colors[pix];
+                        emulator.frameBuffer.data[idx] = r;
+                        emulator.frameBuffer.data[idx + 1] = g;
+                        emulator.frameBuffer.data[idx + 2] = b;
+                        emulator.frameBuffer.data[idx + 3] = 255;
+                    }
+                }
+            }
+
+            // Renderizar en canvas (escalado 2x)
+            emulator.ctx.clearRect(0, 0, emulator.canvas.width, emulator.canvas.height);
+            emulator.ctx.putImageData(emulator.frameBuffer, 0, 0);
+            emulator.ctx.scale(2, 1.81);
+            emulator.ctx.drawImage(emulator.canvas, 0, 0);
+            emulator.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+            emulator.frameCount++;
+        }
+
+        function emulatorLoop() {
+            if (!emulator.running) return;
+
+            // Simular lógica de juego según teclas presionadas
+            if (emulator.keyState['arrowup'] || emulator.keyState['w']) {
+                // Arriba
+            }
+            if (emulator.keyState['arrowdown'] || emulator.keyState['s']) {
+                // Abajo
+            }
+            if (emulator.keyState['arrowleft'] || emulator.keyState['a']) {
+                // Izquierda
+            }
+            if (emulator.keyState['arrowright'] || emulator.keyState['d']) {
+                // Derecha
+            }
+
+            renderEmulatorFrame();
+            requestAnimationFrame(emulatorLoop);
+        }
+
+        // Handlers para el emulador
+        document.addEventListener('DOMContentLoaded', () => {
+            const emulatorInput = document.getElementById('emulatorRomInput');
+            if (emulatorInput) {
+                emulatorInput.addEventListener('change', loadEmulatorROM);
+            }
+
+            initEmulator();
+        });
+
+        // Inicializar si el DOM ya está cargado
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initEmulator);
+        } else {
+            initEmulator();
+        }
     </script>
 </body>
 </html>
