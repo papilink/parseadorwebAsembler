@@ -337,6 +337,134 @@
             animation: spin 0.8s linear infinite;
         }
 
+        /* Emulator thumbnail & fullscreen */
+        .emulator-thumbnail {
+            width: 256px;
+            height: 212px;
+            border: 2px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.6);
+            background: #000;
+            image-rendering: pixelated;
+        }
+
+        .emulator-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 12px;
+        }
+
+        .fs-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .fs-overlay canvas {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 4px;
+            box-shadow: 0 10px 60px rgba(0,0,0,0.8);
+        }
+
+        .fs-close {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            z-index: 10000;
+        }
+
+        .fs-controls {
+            position: fixed;
+            left: 18px;
+            bottom: 18px;
+            z-index: 10000;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: rgba(0,0,0,0.4);
+            padding: 8px 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(6px);
+        }
+
+        .fs-controls input[type="range"] {
+            width: 160px;
+        }
+
+        /* Advanced options */
+        .advanced-options {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            border-radius: 6px;
+        }
+
+        .advanced-options-toggle {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .advanced-options-content {
+            display: none;
+        }
+
+        .advanced-options-content.active {
+            display: block;
+        }
+
+        .adv-group {
+            margin-bottom: 12px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .adv-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .adv-input-group label {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+        }
+
+        .adv-input-group input {
+            padding: 6px 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+            color: var(--text-light);
+            border-radius: 4px;
+            font-family: monospace;
+            width: 140px;
+        }
+
+        .adv-presets {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .adv-presets button {
+            padding: 6px 10px;
+            font-size: 0.85em;
+        }
+
         /* Grid responsivo */
         @media (max-width: 768px) {
             .container {
@@ -417,6 +545,35 @@
                     <div><span class="label">Píxeles:</span> <span id="pixelCount">0</span></div>
                     <div><span class="label">Resolución:</span> <span id="resolution">256×212</span></div>
                     <div><span class="label">Tiempo:</span> <span id="processTime">-</span></div>
+                </div>
+            </div>
+
+            <!-- Advanced Options Panel -->
+            <div class="advanced-options" style="display: none;" id="advancedPanel">
+                <div class="advanced-options-toggle" id="advToggle">
+                    <span>⚙️ Opciones Avanzadas</span>
+                    <span id="advToggleIcon">▼</span>
+                </div>
+                <div class="advanced-options-content" id="advContent">
+                    <div class="adv-group">
+                        <div class="adv-input-group">
+                            <label>Offset (bytes):</label>
+                            <input type="number" id="romOffset" value="0" min="0">
+                        </div>
+                        <div class="adv-input-group">
+                            <label>Tamaño (bytes):</label>
+                            <input type="number" id="romSize" value="27136" min="1">
+                        </div>
+                    </div>
+                    <div class="adv-group">
+                        <label style="font-weight: bold; color: var(--text-secondary); margin-bottom: 6px; width: 100%;">Presets:</label>
+                        <div class="adv-presets">
+                            <button class="btn-secondary" onclick="window.setRomPreset(0, 27136)">256×212</button>
+                            <button class="btn-secondary" onclick="window.setRomPreset(0, 32768)">32 KB</button>
+                            <button class="btn-secondary" onclick="window.setRomPreset(0, 65536)">64 KB</button>
+                            <button class="btn-secondary" onclick="window.setRomPreset(16384, 27136)">+16KB offset</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -575,6 +732,15 @@
             document.getElementById('bytesCount').textContent = data.length.toLocaleString();
             document.getElementById('pixelCount').textContent = (data.length * 2).toLocaleString();
             document.getElementById('clearBtn').style.display = 'block';
+            
+            // Mostrar panel avanzado si la ROM es mayor al tamaño esperado
+            const advPanel = document.getElementById('advancedPanel');
+            if (data.length > 27136) {
+                advPanel.style.display = 'block';
+                document.getElementById('romSize').value = '27136';
+            } else {
+                advPanel.style.display = 'none';
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -600,6 +766,27 @@
 
             try {
                 let rgba;
+                
+                // Obtener offset y tamaño de opciones avanzadas
+                const romOffset = parseInt(document.getElementById('romOffset').value) || 0;
+                const romSize = parseInt(document.getElementById('romSize').value) || 27136;
+
+                // Extraer buffer de ROM con offset y tamaño personalizados
+                const endIdx = Math.min(romOffset + romSize, currentRomData.length);
+                let romBuffer = currentRomData.slice(romOffset, endIdx);
+
+                if (romBuffer.length < 27136) {
+                    console.warn(`⚠️ Buffer insuficiente: ${romBuffer.length} bytes (esperado 27136). Se rellenará con ceros.`);
+                    // Rellenar con ceros si es necesario
+                    const padded = new Uint8Array(27136);
+                    padded.set(romBuffer);
+                    romBuffer = padded;
+                } else if (romBuffer.length > 27136) {
+                    console.warn(`⚠️ Buffer mayor al esperado: ${romBuffer.length} bytes. Usando primeros 27136 bytes.`);
+                    romBuffer = romBuffer.slice(0, 27136);
+                }
+
+                console.log(`📂 ROM: offset=${romOffset}, size=${romSize}, buffer=${romBuffer.length} bytes`);
 
                 if (useFull) {
                     // Procesamiento completo con opciones
@@ -609,7 +796,7 @@
                     const glowIntensity = parseFloat(document.getElementById('glowIntensity').value);
 
                     const result = processor.process_with_post_effects(
-                        currentRomData,
+                        romBuffer,
                         enableBilinear,
                         enableNormals,
                         enableEdges,
@@ -625,7 +812,7 @@
                     console.log('  Edges:', result.get_edges().length, 'valores');
                 } else {
                     // Solo RGBA conversion
-                    rgba = processor.transform_to_rgba(currentRomData);
+                    rgba = processor.transform_to_rgba(romBuffer);
                     console.log('📊 Conversión RGBA: ', rgba.length, 'bytes');
                 }
 
@@ -657,20 +844,260 @@
             const width = enableBilinear ? 3840 : 256;
             const height = enableBilinear ? 2160 : 212;
 
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
+            // Canvas principal (off-DOM) con resolución real
+            const mainCanvas = document.createElement('canvas');
+            mainCanvas.width = width;
+            mainCanvas.height = height;
+            const mainCtx = mainCanvas.getContext('2d');
+            const imageData = mainCtx.createImageData(width, height);
+            const expectedLen = width * height * 4;
+            if (rgbaData.length !== expectedLen) {
+                console.warn(`⚠️ Tamaño RGBA inesperado: obtenido ${rgbaData.length}, esperado ${expectedLen}`);
+            }
 
-            const ctx = canvas.getContext('2d');
-            const imageData = ctx.createImageData(width, height);
+            // Asegurar tipo adecuado para putImageData
+            let pixelArray;
+            try {
+                if (rgbaData instanceof Uint8ClampedArray) {
+                    pixelArray = rgbaData;
+                } else {
+                    pixelArray = new Uint8ClampedArray(rgbaData.buffer || rgbaData);
+                }
+            } catch (e) {
+                console.warn('⚠️ No se pudo convertir a Uint8ClampedArray, creando copia:', e);
+                pixelArray = new Uint8ClampedArray(rgbaData);
+            }
 
-            // Copiar datos RGBA al canvas
-            imageData.data.set(rgbaData);
-            ctx.putImageData(imageData, 0, 0);
+            // Mostrar primeros píxeles para diagnóstico
+            const sample = Array.from(pixelArray.slice(0, 16));
+            console.log('🔎 Muestra RGBA primeros bytes:', sample);
 
-            canvasContainer.appendChild(canvas);
+            imageData.data.set(pixelArray.subarray(0, imageData.data.length));
+            mainCtx.putImageData(imageData, 0, 0);
 
-            console.log(`🖼️ Canvas renderizado: ${width}×${height}`);
+            // Miniatura para la UI
+            const thumbW = 256;
+            const thumbH = 212;
+            const thumbCanvas = document.createElement('canvas');
+            thumbCanvas.width = thumbW;
+            thumbCanvas.height = thumbH;
+            thumbCanvas.className = 'emulator-thumbnail';
+            const thumbCtx = thumbCanvas.getContext('2d');
+            // Configurar suavizado según si se está usando bilinear
+            const smoothing = document.getElementById('enableBilinear').checked;
+            thumbCtx.imageSmoothingEnabled = !!smoothing;
+            thumbCanvas.style.imageRendering = smoothing ? 'auto' : 'pixelated';
+            // Escalar desde el canvas principal
+            thumbCtx.drawImage(mainCanvas, 0, 0, width, height, 0, 0, thumbW, thumbH);
+
+            // Controles (fullscreen)
+            const controls = document.createElement('div');
+            controls.className = 'emulator-controls';
+            const fsBtn = document.createElement('button');
+            fsBtn.className = 'btn-primary';
+            fsBtn.textContent = '⤢ Pantalla completa';
+            fsBtn.addEventListener('click', () => openFullscreen(mainCanvas));
+
+            // Click en miniatura también abre fullscreen
+            thumbCanvas.addEventListener('click', () => openFullscreen(mainCanvas));
+
+            controls.appendChild(fsBtn);
+
+            // Añadir a DOM: miniatura + controles
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'flex';
+            wrapper.style.alignItems = 'center';
+            wrapper.appendChild(thumbCanvas);
+            wrapper.appendChild(controls);
+
+            canvasContainer.appendChild(wrapper);
+
+            console.log(`🖼️ Canvas renderizado (miniatura): ${thumbW}×${thumbH} — fuente ${width}×${height}`);
+        }
+
+        function openFullscreen(sourceCanvas) {
+            // Crear overlay
+            let fsOverlay = document.getElementById('fsOverlay');
+            if (!fsOverlay) {
+                fsOverlay = document.createElement('div');
+                fsOverlay.id = 'fsOverlay';
+                fsOverlay.className = 'fs-overlay';
+                document.body.appendChild(fsOverlay);
+            }
+            fsOverlay.innerHTML = '';
+
+            // Canvas para pantalla completa (dibujar copia)
+            const fsCanvas = document.createElement('canvas');
+            fsCanvas.width = sourceCanvas.width;
+            fsCanvas.height = sourceCanvas.height;
+            fsCanvas.style.transition = 'transform 120ms ease';
+            fsCanvas.style.transformOrigin = 'center center';
+            const fsCtx = fsCanvas.getContext('2d');
+            const smoothingFs = document.getElementById('enableBilinear').checked;
+            fsCtx.imageSmoothingEnabled = !!smoothingFs;
+            fsCanvas.style.imageRendering = smoothingFs ? 'auto' : 'pixelated';
+            fsCtx.drawImage(sourceCanvas, 0, 0);
+
+            // Botón cerrar
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'fs-close btn-secondary';
+            closeBtn.textContent = '✖';
+
+            // Controles de zoom / fit
+            const controls = document.createElement('div');
+            controls.className = 'fs-controls';
+
+            const zoomOut = document.createElement('button');
+            zoomOut.className = 'btn-secondary';
+            zoomOut.textContent = '−';
+
+            const zoomIn = document.createElement('button');
+            zoomIn.className = 'btn-secondary';
+            zoomIn.textContent = '+';
+
+            const fitBtn = document.createElement('button');
+            fitBtn.className = 'btn-primary';
+            fitBtn.textContent = 'Ajustar';
+
+            const range = document.createElement('input');
+            range.type = 'range';
+            range.min = '0.1';
+            range.max = '4';
+            range.step = '0.05';
+            range.value = '1';
+
+            controls.appendChild(zoomOut);
+            controls.appendChild(range);
+            controls.appendChild(zoomIn);
+            controls.appendChild(fitBtn);
+
+            // Append elements
+            fsOverlay.appendChild(fsCanvas);
+            fsOverlay.appendChild(closeBtn);
+            fsOverlay.appendChild(controls);
+
+            // Estado de escala
+            let scale = 1;
+            let lastFit = false;
+
+            function applyScale() {
+                fsCanvas.style.transform = `scale(${scale})`;
+            }
+
+            function fitToScreen() {
+                const margin = 40; // px
+                const availableW = window.innerWidth - margin * 2;
+                const availableH = window.innerHeight - margin * 2;
+                const s = Math.min(availableW / fsCanvas.width, availableH / fsCanvas.height, 1);
+                return s || 1;
+            }
+
+            zoomIn.addEventListener('click', () => {
+                lastFit = false;
+                scale = Math.min(4, parseFloat((scale + 0.1).toFixed(2)));
+                range.value = String(scale);
+                applyScale();
+            });
+
+            zoomOut.addEventListener('click', () => {
+                lastFit = false;
+                scale = Math.max(0.1, parseFloat((scale - 0.1).toFixed(2)));
+                range.value = String(scale);
+                applyScale();
+            });
+
+            range.addEventListener('input', (e) => {
+                lastFit = false;
+                scale = parseFloat(e.target.value);
+                applyScale();
+            });
+
+            fitBtn.addEventListener('click', () => {
+                scale = fitToScreen();
+                range.value = String(scale);
+                lastFit = true;
+                applyScale();
+            });
+
+            // cerrar overlay
+            const removeOverlay = () => {
+                window.removeEventListener('resize', onResize);
+                window.removeEventListener('keydown', onKeyDown);
+                if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+                fsOverlay.remove();
+            };
+
+            closeBtn.addEventListener('click', removeOverlay);
+
+            // si se ajustó al tamaño, recalcular cuando cambie la ventana
+            function onResize() {
+                if (lastFit) {
+                    scale = fitToScreen();
+                    range.value = String(scale);
+                    applyScale();
+                }
+            }
+
+            window.addEventListener('resize', onResize);
+
+            // Atajos de teclado: +/- para zoom, f para fit, Esc para cerrar
+            function onKeyDown(e) {
+                const overlayExists = document.getElementById('fsOverlay');
+                if (!overlayExists) return;
+
+                const k = e.key;
+                const code = e.code || '';
+
+                // Plus: '+' key or '=' or NumpadAdd
+                if (k === '+' || k === '=' || code === 'NumpadAdd') {
+                    e.preventDefault();
+                    lastFit = false;
+                    scale = Math.min(4, parseFloat((scale + 0.1).toFixed(2)));
+                    range.value = String(scale);
+                    applyScale();
+                    return;
+                }
+
+                // Minus
+                if (k === '-' || k === '_' || code === 'NumpadSubtract') {
+                    e.preventDefault();
+                    lastFit = false;
+                    scale = Math.max(0.1, parseFloat((scale - 0.1).toFixed(2)));
+                    range.value = String(scale);
+                    applyScale();
+                    return;
+                }
+
+                // Fit
+                if (k && k.toLowerCase() === 'f') {
+                    e.preventDefault();
+                    scale = fitToScreen();
+                    range.value = String(scale);
+                    lastFit = true;
+                    applyScale();
+                    return;
+                }
+
+                // Escape: cerrar overlay
+                if (k === 'Escape') {
+                    e.preventDefault();
+                    removeOverlay();
+                    return;
+                }
+            }
+
+            window.addEventListener('keydown', onKeyDown);
+
+            // Intentar entrar en fullscreen en el canvas
+            fsCanvas.requestFullscreen && fsCanvas.requestFullscreen().catch(()=>{});
+
+            // Aplicar escala inicial (fit si canvas excede viewport)
+            if (fsCanvas.width > window.innerWidth || fsCanvas.height > window.innerHeight) {
+                scale = fitToScreen();
+                range.value = String(scale);
+                lastFit = true;
+            }
+            applyScale();
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -731,6 +1158,24 @@
             document.getElementById('processFullBtn').disabled = true;
             hideStatus();
         });
+
+        // ═══════════════════════════════════════════════════════════════
+        // PANEL AVANZADO: OPCIONES DE OFFSET Y TAMAÑO
+        // ═══════════════════════════════════════════════════════════════
+
+        // Toggle del panel avanzado
+        document.getElementById('advToggle').addEventListener('click', () => {
+            const content = document.getElementById('advContent');
+            const icon = document.getElementById('advToggleIcon');
+            content.classList.toggle('active');
+            icon.textContent = content.classList.contains('active') ? '▲' : '▼';
+        });
+
+        // Función para establecer presets
+        window.setRomPreset = function(offset, size) {
+            document.getElementById('romOffset').value = offset;
+            document.getElementById('romSize').value = size;
+        };
 
         // ═══════════════════════════════════════════════════════════════
         // INICIAR APLICACIÓN

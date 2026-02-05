@@ -110,7 +110,8 @@ def run_server():
     ))
     
     # Verificar archivos necesarios
-    required_files = ['index.html', 'demo.html', 'pkg/msx2_processor.wasm']
+    # El wasm generado por wasm-bindgen suele llamarse "msx2_processor_bg.wasm".
+    required_files = ['index.html', 'demo.html', 'pkg/msx2_processor_bg.wasm']
     print("📋 Verificando archivos...")
     for filepath in required_files:
         full_path = os.path.join(SCRIPT_DIR, filepath)
