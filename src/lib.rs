@@ -7,6 +7,101 @@
 //! ╚════════════════════════════════════════════════════════════════╝
 
 use wasm_bindgen::prelude::*;
+use std::collections::HashMap;
+
+// ═══════════════════════════════════════════════════════════════
+// MAPA DE MEMORIA DEL MSX2
+// ═══════════════════════════════════════════════════════════════
+
+#[wasm_bindgen]
+pub struct MemoryMapSlot {
+    address: u32,
+    size: u32,
+    name: String,
+    region_type: String,
+}
+
+#[wasm_bindgen]
+impl MemoryMapSlot {
+    #[wasm_bindgen(constructor)]
+    pub fn new(address: u32, size: u32, name: String, region_type: String) -> MemoryMapSlot {
+        MemoryMapSlot {
+            address,
+            size,
+            name,
+            region_type,
+        }
+    }
+
+    pub fn get_address(&self) -> u32 {
+        self.address
+    }
+
+    pub fn get_size(&self) -> u32 {
+        self.size
+    }
+
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+
+    pub fn get_region_type(&self) -> String {
+        self.region_type.clone()
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INFORMACIÓN DE CARGA
+// ═══════════════════════════════════════════════════════════════
+
+#[wasm_bindgen]
+pub struct LoadInfo {
+    load_address: u32,
+    binary_size: u32,
+    start_address: u32,
+    end_address: u32,
+    memory_slot: String,
+}
+
+#[wasm_bindgen]
+impl LoadInfo {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        load_address: u32,
+        binary_size: u32,
+        start_address: u32,
+        end_address: u32,
+        memory_slot: String,
+    ) -> LoadInfo {
+        LoadInfo {
+            load_address,
+            binary_size,
+            start_address,
+            end_address,
+            memory_slot,
+        }
+    }
+
+    pub fn get_load_address(&self) -> u32 {
+        self.load_address
+    }
+
+    pub fn get_binary_size(&self) -> u32 {
+        self.binary_size
+    }
+
+    pub fn get_start_address(&self) -> u32 {
+        self.start_address
+    }
+
+    pub fn get_end_address(&self) -> u32 {
+        self.end_address
+    }
+
+    pub fn get_memory_slot(&self) -> String {
+        self.memory_slot.clone()
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // ESTRUCTURAS PRINCIPALES
@@ -17,6 +112,7 @@ pub struct MSX2Processor {
     palette: [[u8; 4]; 16],
     width: usize,
     height: usize,
+    memory_map: HashMap<String, MemoryMapSlot>,
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -47,11 +143,69 @@ impl MSX2Processor {
         palette[14] = [128, 128, 128, 255];    // Gris
         palette[15] = [200, 200, 200, 255];    // Gris claro
         
+        // Crear mapa de memoria MSX2
+        let mut memory_map = HashMap::new();
+        memory_map.insert(
+            "slot0".to_string(),
+            MemoryMapSlot::new(0x0000, 0x4000, "BIOS/ROM".to_string(), "ROM".to_string()),
+        );
+        memory_map.insert(
+            "slot1".to_string(),
+            MemoryMapSlot::new(0x4000, 0x4000, "Cartridge".to_string(), "Cartridge".to_string()),
+        );
+        memory_map.insert(
+            "slot2".to_string(),
+            MemoryMapSlot::new(0x8000, 0x4000, "RAM (Slot 2)".to_string(), "RAM".to_string()),
+        );
+        memory_map.insert(
+            "slot3".to_string(),
+            MemoryMapSlot::new(0xC000, 0x4000, "RAM Principal".to_string(), "RAM".to_string()),
+        );
+        
         MSX2Processor {
             palette,
             width: width as usize,
             height: height as usize,
+            memory_map,
         }
+    }
+
+    /// Obtener el mapa de memoria completo como JSON
+    pub fn get_memory_map(&self) -> JsValue {
+        let mut map_data = vec![];
+        
+        for (_, slot) in self.memory_map.iter() {
+            map_data.push(format!(
+                r#"{{"address":"0x{:04X}","size":"0x{:04X}","name":"{}","type":"{}"}}"#,
+                slot.address, slot.size, slot.name, slot.region_type
+            ));
+        }
+        
+        JsValue::from_str(&format!("[{}]", map_data.join(",")))
+    }
+
+    /// Encontrar slot de memoria para una dirección dada
+    pub fn find_memory_slot(&self, address: u32) -> String {
+        for (_name, slot) in self.memory_map.iter() {
+            if address >= slot.address && address < (slot.address + slot.size) {
+                return format!("{} (0x{:04X})", slot.name, slot.address);
+            }
+        }
+        "Desconocido".to_string()
+    }
+
+    /// Crear información de carga para una dirección específica
+    pub fn create_load_info(&self, load_address: u32, binary_size: u32) -> LoadInfo {
+        let end_address = load_address.saturating_add(binary_size);
+        let memory_slot = self.find_memory_slot(load_address);
+        
+        LoadInfo::new(
+            load_address,
+            binary_size,
+            load_address,
+            end_address,
+            memory_slot,
+        )
     }
 
     /// Convierte MSX2 4bpp a RGBA 32bpp
@@ -305,7 +459,7 @@ impl MSX2Processor {
         let g = rgba[idx + 1] as f32;
         let b = rgba[idx + 2] as f32;
 
-        ((0.299 * r + 0.587 * g + 0.114 * b) as u8)
+        (0.299 * r + 0.587 * g + 0.114 * b) as u8
     }
 
     fn compute_normal(&self, dx: f32, dy: f32, strength: f32) -> (f32, f32, f32) {

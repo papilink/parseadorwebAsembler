@@ -1,4 +1,1 @@
-# Allow compiled WASM and JS files for GitHub Pages
-# *.wasm
-# *.js
-# *.d.ts
+*

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎮 MSX2 ROM Viewer - PAPIWEB</title>
+    <!-- JSZip para soporte de archivos ZIP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -212,6 +214,53 @@
         .btn-secondary:hover:not(:disabled) {
             background: rgba(0, 212, 255, 0.3);
             box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        /* ZIP Block Buttons */
+        .zip-block-button {
+            padding: 10px 12px;
+            background: rgba(0,255,65,0.1);
+            border: 1px solid rgba(0,255,65,0.3);
+            border-radius: 6px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            font-family: monospace;
+            font-size: 0.85em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .zip-block-button:hover {
+            background: rgba(0,255,65,0.2);
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0,255,65,0.2);
+            transform: translateX(2px);
+        }
+
+        .zip-block-button.selected {
+            background: rgba(0,255,65,0.3);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(0,255,65,0.4);
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .zip-block-info {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            margin-right: auto;
+        }
+
+        .zip-block-size {
+            background: rgba(0,255,65,0.2);
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            color: var(--primary);
         }
 
         /* Info Panel */
@@ -602,6 +651,65 @@
                 </div>
             </div>
 
+            <!-- ZIP Blocks Selector Panel -->
+            <div id="zipBlocksPanel" class="info-panel" style="display: none; margin-top: 20px;">
+                <div class="info-title">📦 Archivos en ZIP</div>
+                <div class="info-content">
+                    <div style="font-size: 0.85em; margin-bottom: 12px;">
+                        <strong style="color: var(--primary);">Se detectó archivo ZIP con múltiples bloques.</strong>
+                        <p style="color: var(--text-secondary); margin-top: 8px;">Selecciona el bloque/archivo a cargar:</p>
+                    </div>
+                    <div id="zipBlocksList" style="display: flex; flex-direction: column; gap: 8px;">
+                        <!-- Bloques se generan dinámicamente aquí -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Memory Map Panel -->
+            <div class="info-panel" style="display: none; margin-top: 20px;" id="memoryPanel">
+                <div class="info-title">🗺️ Mapa de Memoria MSX2</div>
+                <div class="info-content" style="font-size: 0.85em; font-family: monospace;">
+                    <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                            <div style="color: var(--primary);">0x0000-0x3FFF</div>
+                            <div style="color: var(--text-secondary);">BIOS/ROM (Slot 0)</div>
+                            <div style="color: var(--primary);">0x4000-0x7FFF</div>
+                            <div style="color: var(--text-secondary);">Cartridge (Slot 1)</div>
+                            <div style="color: var(--primary);">0x8000-0xBFFF</div>
+                            <div style="color: var(--text-secondary);">RAM (Slot 2)</div>
+                            <div style="color: var(--primary);">0xC000-0xFFFF</div>
+                            <div style="color: var(--text-secondary);">RAM Principal (Slot 3)</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Load Address Selector -->
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,255,65,0.2);">
+                    <label style="display: block; margin-bottom: 8px; color: var(--primary); font-weight: 500; font-size: 0.9em;">Dirección de Carga:</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+                        <button class="btn-secondary" onclick="window.setMemoryAddress(0xC000)" style="padding: 6px 12px; font-size: 0.85em;">0xC000 (Estándar)</button>
+                        <button class="btn-secondary" onclick="window.setMemoryAddress(0x4000)" style="padding: 6px 12px; font-size: 0.85em;">0x4000 (Slot 1)</button>
+                        <button class="btn-secondary" onclick="window.setMemoryAddress(0x8000)" style="padding: 6px 12px; font-size: 0.85em;">0x8000 (Slot 2)</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: flex-end;">
+                        <div style="flex: 1;">
+                            <label style="display: block; font-size: 0.8em; color: var(--text-secondary); margin-bottom: 4px;">Dirección personalizada (hex):</label>
+                            <input type="text" id="customLoadAddress" placeholder="ej: 0xC000" style="width: 100%; padding: 6px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,65,0.3); color: var(--text-light); border-radius: 4px; font-family: monospace; font-size: 0.85em;">
+                        </div>
+                        <button class="btn-secondary" onclick="window.applyCustomAddress()" style="padding: 6px 12px; font-size: 0.85em; white-space: nowrap;">Aplicar</button>
+                    </div>
+                </div>
+                
+                <!-- Load Info Display -->
+                <div id="loadInfo" style="display: none; margin-top: 12px; padding: 10px; background: rgba(0,255,65,0.1); border: 1px solid rgba(0,255,65,0.3); border-radius: 4px;">
+                    <div style="font-size: 0.8em; color: var(--primary); margin-bottom: 6px; font-weight: bold;">📍 Información de Carga</div>
+                    <div><span style="color: var(--primary);">Dirección:</span> <span id="loadAddress" style="color: var(--text-light); font-weight: bold;">-</span></div>
+                    <div><span style="color: var(--primary);">Tamaño Binary:</span> <span id="loadSize" style="color: var(--text-light); font-weight: bold;">-</span></div>
+                    <div><span style="color: var(--primary);">Dirección Fin:</span> <span id="loadEndAddress" style="color: var(--text-light); font-weight: bold;">-</span></div>
+                    <div><span style="color: var(--primary);">Slot:</span> <span id="loadSlot" style="color: var(--success); font-weight: bold;">-</span></div>
+                </div>
+            </div>
+
             <!-- Advanced Options Panel -->
             <div class="advanced-options" style="display: none;" id="advancedPanel">
                 <div class="advanced-options-toggle" id="advToggle">
@@ -688,6 +796,17 @@
                 <small style="display: block; margin-top: 10px; color: var(--text-secondary);">💾 Soporta: ROM, BIN, CAS, DSK, ZIP, GZ | Emulador: CPU Z80 + VDP (Yamaha V9938)</small>
             </div>
 
+            <!-- ZIP Blocks Selector Panel for Emulator -->
+            <div id="jsmsx-zipBlocksPanel" style="display: none; margin-bottom: 20px; padding: 15px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(0, 255, 65, 0.3); border-radius: 8px;">
+                <div style="color: var(--primary); font-weight: 600; margin-bottom: 12px;">📦 Archivos en ZIP</div>
+                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 12px;">
+                    Se detectó archivo ZIP. Selecciona el ROM a emular:
+                </div>
+                <div id="jsmsx-zipBlocksList" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Botones generados dinámicamente -->
+                </div>
+            </div>
+
             <!-- Emulator Controls -->
             <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
                 <button onclick="jsmsx_play()" class="btn-primary">▶️ Iniciar</button>
@@ -749,6 +868,18 @@
             document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
         }
+    </script>
+
+    <!-- Global Utilities -->
+    <script>
+        // Funciones globales disponibles para todos los scripts
+        window.formatBytes = function(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        };
     </script>
 
     <!-- WASM Module -->
@@ -826,10 +957,20 @@
             const reader = new FileReader();
 
             reader.onload = (e) => {
-                currentRomData = new Uint8Array(e.target.result);
-                displayFileInfo(file, currentRomData);
-                enableProcessButtons();
-                hideStatus();
+                const data = new Uint8Array(e.target.result);
+                
+                // Detectar si es ZIP (firma magic: 0x504B0304)
+                const isZip = data[0] === 0x50 && data[1] === 0x4B && data[2] === 0x03 && data[3] === 0x04;
+                
+                if (isZip) {
+                    console.log('📦 Archivo ZIP detectado, procesando bloques...');
+                    handleZipFile(file, data);
+                } else {
+                    currentRomData = data;
+                    displayFileInfo(file, currentRomData);
+                    enableProcessButtons();
+                    hideStatus();
+                }
             };
 
             reader.onerror = () => {
@@ -837,6 +978,111 @@
             };
 
             reader.readAsArrayBuffer(file);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // MANEJO DE ARCHIVOS ZIP
+        // ═══════════════════════════════════════════════════════════════
+
+        async function handleZipFile(file, zipData) {
+            try {
+                showStatus('🗜️ Descomprimiendo ZIP...', 'loading');
+                
+                const zip = new JSZip();
+                await zip.loadAsync(zipData);
+                
+                const files = [];
+                
+                // Recolectar todos los archivos del ZIP
+                zip.forEach((relativePath, zipEntry) => {
+                    if (!zipEntry.dir) {
+                        files.push({
+                            name: relativePath,
+                            size: zipEntry._data ? zipEntry._data.uncompressedSize : 0,
+                            path: relativePath
+                        });
+                    }
+                });
+                
+                if (files.length === 0) {
+                    showStatus('❌ No hay archivos en el ZIP', 'error');
+                    return;
+                }
+                
+                console.log(`📦 ZIP contiene ${files.length} archivo(s):`, files);
+                
+                // Mostrar panel de selección
+                displayZipBlocksPanel(file, zip, files);
+                showStatus(`✅ ZIP descomprimido: ${files.length} bloque(s)`, 'success');
+                hideStatusAfter(3000);
+                
+            } catch (err) {
+                console.error('❌ Error descomprimiendo ZIP:', err);
+                showStatus(`❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        function displayZipBlocksPanel(file, zip, files) {
+            // Mostrar archivo info
+            document.getElementById('fileInfo').style.display = 'block';
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatBytes(file.size);
+            document.getElementById('fileType').textContent = 'application/zip';
+            
+            // Mostrar panel de bloques
+            const blocksPanel = document.getElementById('zipBlocksPanel');
+            const blocksList = document.getElementById('zipBlocksList');
+            
+            blocksList.innerHTML = '';
+            
+            files.forEach((fileInfo, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'zip-block-button';
+                btn.innerHTML = `
+                    <span>📄 ${fileInfo.name}</span>
+                    <span class="zip-block-size">${formatBytes(fileInfo.size)}</span>
+                `;
+                
+                btn.addEventListener('click', async () => {
+                    // Marcar como seleccionado
+                    document.querySelectorAll('.zip-block-button').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    
+                    try {
+                        showStatus(`⏳ Extrayendo ${fileInfo.name}...`, 'loading');
+                        
+                        // Extraer el archivo del ZIP
+                        const extractedData = await zip.file(fileInfo.path).async('uint8array');
+                        currentRomData = extractedData;
+                        
+                        // Crear información de archivo
+                        const fileObj = {
+                            name: fileInfo.name,
+                            size: extractedData.length,
+                            type: 'application/octet-stream'
+                        };
+                        
+                        // Mostrar información
+                        displayFileInfo(fileObj, currentRomData);
+                        enableProcessButtons();
+                        
+                        showStatus(`✅ ${fileInfo.name} cargado (${formatBytes(extractedData.length)})`, 'success');
+                        hideStatusAfter(2000);
+                        
+                    } catch (err) {
+                        console.error('❌ Error extrayendo archivo:', err);
+                        showStatus(`❌ Error: ${err.message}`, 'error');
+                    }
+                });
+                
+                blocksList.appendChild(btn);
+            });
+            
+            blocksPanel.style.display = 'block';
+            document.getElementById('analysisPanel').style.display = 'none';
+            document.getElementById('memoryPanel').style.display = 'none';
+            document.getElementById('loadInfo').style.display = 'none';
+            document.getElementById('clearBtn').style.display = 'block';
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -850,9 +1096,14 @@
             document.getElementById('fileType').textContent = file.type || 'application/octet-stream';
 
             document.getElementById('analysisPanel').style.display = 'block';
+            document.getElementById('zipBlocksPanel').style.display = 'none';
+            document.getElementById('memoryPanel').style.display = 'block';
             document.getElementById('bytesCount').textContent = data.length.toLocaleString();
             document.getElementById('pixelCount').textContent = (data.length * 2).toLocaleString();
             document.getElementById('clearBtn').style.display = 'block';
+            
+            // Actualizar información de carga
+            updateLoadInfo();
             
             // Mostrar panel avanzado si la ROM es mayor al tamaño esperado
             const advPanel = document.getElementById('advancedPanel');
@@ -1249,23 +1500,226 @@
             setTimeout(hideStatus, ms);
         }
 
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-        }
-
         document.getElementById('glowIntensity').addEventListener('input', (e) => {
             document.getElementById('glowValue').textContent = e.target.value;
         });
+
+        // ═══════════════════════════════════════════════════════════════
+        // VARIABLES DE ESTADO DE MEMORIA
+        // ═══════════════════════════════════════════════════════════════
+
+        let currentLoadAddress = 0xC000;  // Dirección de carga por defecto (RAM Principal)
+        let memoryMap = {
+            'slot0': { address: 0x0000, size: 0x4000, name: 'BIOS/ROM' },
+            'slot1': { address: 0x4000, size: 0x4000, name: 'Cartridge' },
+            'slot2': { address: 0x8000, size: 0x4000, name: 'RAM (Slot 2)' },
+            'slot3': { address: 0xC000, size: 0x4000, name: 'RAM Principal' }
+        };
+
+        // Función para encontrar slot de memoria
+        function findMemorySlot(address) {
+            for (let [key, slot] of Object.entries(memoryMap)) {
+                if (address >= slot.address && address < (slot.address + slot.size)) {
+                    return slot.name + ` (0x${slot.address.toString(16).toUpperCase().padStart(4, '0')})`;
+                }
+            }
+            return 'Desconocido';
+        }
+
+        // Función para establecer dirección de memoria
+        window.setMemoryAddress = function(address) {
+            currentLoadAddress = address;
+            const addressHex = '0x' + address.toString(16).toUpperCase().padStart(4, '0');
+            document.getElementById('customLoadAddress').value = addressHex;
+            console.log(`📍 Dirección de carga establecida: ${addressHex}`);
+            
+            // Actualizar información de carga si ROM está cargada
+            if (currentRomData) {
+                updateLoadInfo();
+            }
+        };
+
+        // Función para aplicar dirección personalizada
+        window.applyCustomAddress = function() {
+            const input = document.getElementById('customLoadAddress').value.trim();
+            let address = currentLoadAddress;
+            
+            // Parsear entrada hex
+            if (input.startsWith('0x') || input.startsWith('0X')) {
+                address = parseInt(input, 16);
+            } else if (/^[0-9A-Fa-f]+$/.test(input)) {
+                address = parseInt(input, 16);
+            } else {
+                showStatus('❌ Formato inválido. Usa 0xC000 o C000', 'error');
+                return;
+            }
+            
+            // Validar rango 16-bit
+            if (isNaN(address) || address < 0 || address > 0xFFFF) {
+                showStatus('❌ Dirección fuera de rango (0x0000-0xFFFF)', 'error');
+                return;
+            }
+            
+            currentLoadAddress = address;
+            const addressHex = '0x' + address.toString(16).toUpperCase().padStart(4, '0');
+            console.log(`📍 Dirección personalizada aplicada: ${addressHex} → ${findMemorySlot(address)}`);
+            showStatus(`✅ Dirección: ${addressHex}`, 'success');
+            hideStatusAfter(2000);
+            
+            if (currentRomData) {
+                updateLoadInfo();
+            }
+        };
+
+        // Función para actualizar información de carga
+        function updateLoadInfo() {
+            if (!currentRomData) return;
+            
+            const binarySize = currentRomData.length;
+            const startAddr = currentLoadAddress;
+            const endAddr = currentLoadAddress + binarySize;
+            const slot = findMemorySlot(startAddr);
+            
+            const loadPanel = document.getElementById('loadInfo');
+            const addressEl = document.getElementById('loadAddress');
+            const sizeEl = document.getElementById('loadSize');
+            const endEl = document.getElementById('loadEndAddress');
+            const slotEl = document.getElementById('loadSlot');
+            
+            addressEl.textContent = '0x' + startAddr.toString(16).toUpperCase().padStart(4, '0');
+            sizeEl.textContent = formatBytes(binarySize) + ` (${binarySize} bytes)`;
+            endEl.textContent = '0x' + Math.min(endAddr, 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+            slotEl.textContent = slot;
+            
+            // Cambiar color si sobrepasa el rango
+            if (endAddr > 0x10000) {
+                slotEl.style.color = '#ffaa00';
+                slotEl.textContent += ' ⚠️ (Sobrepasa memoria)';
+            } else {
+                slotEl.style.color = 'var(--success)';
+            }
+            
+            loadPanel.style.display = 'block';
+            
+            // Actualizar visualización del mapa de memoria
+            drawMemoryMap();
+        }
+
+        // Función para dibujar el mapa de memoria visualizado
+        function drawMemoryMap() {
+            if (!currentRomData) return;
+            
+            const container = document.getElementById('memoryPanel');
+            let canvas = document.getElementById('memoryVisualCanvas');
+            
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                canvas.id = 'memoryVisualCanvas';
+                canvas.width = 280;
+                canvas.height = 180;
+                canvas.style.border = '1px solid rgba(0,255,65,0.3)';
+                canvas.style.borderRadius = '4px';
+                canvas.style.marginTop = '12px';
+                canvas.style.marginBottom = '12px';
+                
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'flex';
+                wrapper.style.justifyContent = 'center';
+                wrapper.appendChild(canvas);
+                
+                // Insertar después del info-content del mapa de memoria
+                const infoContent = container.querySelector('.info-content');
+                if (infoContent) {
+                    infoContent.parentNode.insertBefore(wrapper, infoContent.nextSibling);
+                }
+            }
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Limpiar canvas
+            ctx.fillStyle = '#000a1a';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Parámetros de visualización
+            const padding = 10;
+            const barWidth = width - padding * 2;
+            const barHeight = 25;
+            const startY = padding;
+            const slotHeight = (height - padding * 2) / 4;
+            
+            // Colores para diferentes regiones
+            const slotColors = {
+                'ROM': '#333366',
+                'Cartridge': '#663366',
+                'RAM': '#336699'
+            };
+            
+            // Dibujar cada slot
+            let y = startY;
+            for (let [key, slot] of Object.entries(memoryMap)) {
+                const x = padding;
+                const slotBarHeight = 30;
+                
+                // Fondo del slot
+                ctx.fillStyle = slotColors[slot.name.includes('ROM') ? 'ROM' : slot.name.includes('Cartridge') ? 'Cartridge' : 'RAM'];
+                ctx.globalAlpha = 0.3;
+                ctx.fillRect(x, y, barWidth, slotBarHeight);
+                ctx.globalAlpha = 1.0;
+                
+                // Borde del slot
+                ctx.strokeStyle = 'rgba(0,255,65,0.3)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, y, barWidth, slotBarHeight);
+                
+                // Texto del slot
+                ctx.fillStyle = 'rgba(0,255,65,0.7)';
+                ctx.font = '10px monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(`0x${slot.address.toString(16).toUpperCase().padStart(4, '0')}-0x${(slot.address + slot.size - 1).toString(16).toUpperCase().padStart(4, '0')} ${slot.name}`, x + 4, y + 12);
+                
+                // Dibujar la ubicación del binario si cae en este slot
+                const binaryStart = currentLoadAddress;
+                const binaryEnd = binaryStart + currentRomData.length;
+                
+                if (binaryStart < slot.address + slot.size && binaryEnd > slot.address) {
+                    // Calcular posición relativa
+                    const relStart = Math.max(0, binaryStart - slot.address);
+                    const relEnd = Math.min(slot.size, binaryEnd - slot.address);
+                    const pixelStart = (relStart / slot.size) * barWidth;
+                    const pixelWidth = ((relEnd - relStart) / slot.size) * barWidth;
+                    
+                    // Dibujar binario
+                    ctx.fillStyle = '#00ff41';
+                    ctx.globalAlpha = 0.8;
+                    ctx.fillRect(x + pixelStart, y + 2, pixelWidth, slotBarHeight - 4);
+                    ctx.globalAlpha = 1.0;
+                    
+                    // Borde destacado
+                    ctx.strokeStyle = '#00ff41';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x + pixelStart, y + 2, pixelWidth, slotBarHeight - 4);
+                }
+                
+                y += slotHeight;
+            }
+            
+            // Leyenda
+            ctx.fillStyle = 'rgba(0,255,65,0.6)';
+            ctx.font = '9px monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText('■ Verde = Binario cargado', padding, height - 5);
+        }
 
         document.getElementById('clearBtn').addEventListener('click', () => {
             currentRomData = null;
             fileInput.value = '';
             document.getElementById('fileInfo').style.display = 'none';
             document.getElementById('analysisPanel').style.display = 'none';
+            document.getElementById('memoryPanel').style.display = 'none';
+            document.getElementById('zipBlocksPanel').style.display = 'none';
+            document.getElementById('loadInfo').style.display = 'none';
             document.getElementById('clearBtn').style.display = 'none';
             document.getElementById('canvasContainer').innerHTML = `
                 <div class="canvas-placeholder">
@@ -1354,19 +1808,104 @@
             }
         }
 
-        // Cargar ROM
+        // Cargar ROM (con soporte para ZIP)
         document.getElementById('jsmsx-romInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
             reader.onload = (evt) => {
-                jsmsxROMBuffer = new Uint8Array(evt.target.result);
-                console.log(`📂 ROM cargada: ${file.name} (${jsmsxROMBuffer.length} bytes)`);
-                console.log('✅ Lista para reproducir - Presiona "Iniciar"');
+                const data = new Uint8Array(evt.target.result);
+                
+                // Detectar si es ZIP (firma magic: 0x504B0304)
+                const isZip = data[0] === 0x50 && data[1] === 0x4B && data[2] === 0x03 && data[3] === 0x04;
+                
+                if (isZip) {
+                    console.log('📦 Archivo ZIP detectado en emulador, procesando bloques...');
+                    handleEmulatorZipFile(file, data);
+                } else {
+                    jsmsxROMBuffer = data;
+                    console.log(`📂 ROM cargada: ${file.name} (${jsmsxROMBuffer.length} bytes)`);
+                    console.log('✅ Lista para reproducir - Presiona "Iniciar"');
+                    document.getElementById('jsmsx-zipBlocksPanel').style.display = 'none';
+                }
             };
             reader.readAsArrayBuffer(file);
         });
+
+        // Manejo de archivos ZIP en el emulador
+        async function handleEmulatorZipFile(file, zipData) {
+            try {
+                console.log('🗜️ Descomprimiendo ZIP del emulador...');
+                
+                const zip = new JSZip();
+                await zip.loadAsync(zipData);
+                
+                const files = [];
+                
+                // Recolectar todos los archivos del ZIP
+                zip.forEach((relativePath, zipEntry) => {
+                    if (!zipEntry.dir) {
+                        files.push({
+                            name: relativePath,
+                            size: zipEntry._data ? zipEntry._data.uncompressedSize : 0,
+                            path: relativePath
+                        });
+                    }
+                });
+                
+                if (files.length === 0) {
+                    console.error('❌ No hay archivos en el ZIP del emulador');
+                    return;
+                }
+                
+                console.log(`📦 ZIP contiene ${files.length} archivo(s):`, files);
+                displayEmulatorZipBlocksPanel(file, zip, files);
+                
+            } catch (err) {
+                console.error('❌ Error descomprimiendo ZIP del emulador:', err);
+            }
+        }
+
+        function displayEmulatorZipBlocksPanel(file, zip, files) {
+            const blocksPanel = document.getElementById('jsmsx-zipBlocksPanel');
+            const blocksList = document.getElementById('jsmsx-zipBlocksList');
+            
+            blocksList.innerHTML = '';
+            
+            files.forEach((fileInfo) => {
+                const btn = document.createElement('button');
+                btn.className = 'zip-block-button';
+                btn.innerHTML = `
+                    <span>📄 ${fileInfo.name}</span>
+                    <span class="zip-block-size">${formatBytes(fileInfo.size)}</span>
+                `;
+                
+                btn.addEventListener('click', async () => {
+                    // Marcar como seleccionado
+                    document.querySelectorAll('#jsmsx-zipBlocksList .zip-block-button').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    
+                    try {
+                        console.log(`⏳ Extrayendo ${fileInfo.name} para emulador...`);
+                        
+                        // Extraer el archivo del ZIP
+                        const extractedData = await zip.file(fileInfo.path).async('uint8array');
+                        jsmsxROMBuffer = extractedData;
+                        
+                        console.log(`✅ ${fileInfo.name} cargado en emulador (${formatBytes(extractedData.length)})`);
+                        console.log('✅ Lista para reproducir - Presiona "Iniciar"');
+                        
+                    } catch (err) {
+                        console.error('❌ Error extrayendo archivo del ZIP:', err);
+                    }
+                });
+                
+                blocksList.appendChild(btn);
+            });
+            
+            blocksPanel.style.display = 'block';
+        }
 
         // Emular un ciclo sencillo que muestre la ROM como bannera visual
         function simulateEmulation() {
@@ -1447,6 +1986,8 @@
                 cancelAnimationFrame(emulationFrameId);
             }
             jsmsxROMBuffer = null;
+            document.getElementById('jsmsx-romInput').value = '';
+            document.getElementById('jsmsx-zipBlocksPanel').style.display = 'none';
             const canvas = document.getElementById('jsmsx-canvas');
             if (canvas) {
                 const ctx = canvas.getContext('2d');
