@@ -710,6 +710,57 @@
                 </div>
             </div>
 
+            <!-- BIOS Management Panel -->
+            <div class="info-panel" style="margin-top: 20px;">
+                <div class="info-title">💾 Gestión BIOS MSX2</div>
+                <div class="info-content">
+                    <!-- File Input for BIOS -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; margin-bottom: 8px; color: var(--primary); font-weight: 500; font-size: 0.9em;">Cargar BIOS:</label>
+                        <div class="file-input-wrapper">
+                            <input 
+                                type="file" 
+                                id="biosInput" 
+                                accept=".rom,.bin,.dat" 
+                                aria-label="Cargar archivo BIOS"
+                            >
+                            <label for="biosInput" class="file-input-label" style="margin: 0;">
+                                <span>📂 Selecciona archivo BIOS (8KB-64KB)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- BIOS Load Button -->
+                    <button id="loadBiosBtn" class="btn-primary" disabled style="width: 100%; margin-bottom: 12px;">
+                        💾 CARGAR BIOS
+                    </button>
+
+                    <!-- BIOS Status -->
+                    <div id="biosStatus" style="display: none; margin-bottom: 12px; padding: 8px; border-radius: 4px; font-size: 0.9em;"></div>
+
+                    <!-- BIOS Information Display -->
+                    <div id="biosInfo" style="display: none; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; border-left: 3px solid var(--success); margin-bottom: 12px; font-size: 0.85em;">
+                        <div style="color: var(--primary); font-weight: bold; margin-bottom: 8px;">✅ BIOS Cargado</div>
+                        <div><span style="color: var(--text-secondary);">Archivo:</span> <span style="color: var(--text-light);" id="biosName">-</span></div>
+                        <div><span style="color: var(--text-secondary);">Tamaño:</span> <span style="color: var(--text-light);" id="biosSize">-</span></div>
+                        <div><span style="color: var(--text-secondary);">Tipo:</span> <span style="color: var(--text-light);" id="biosType">-</span></div>
+                        <div><span style="color: var(--text-secondary);">Checksum:</span> <span style="color: var(--primary); font-family: monospace;" id="biosChecksum">-</span></div>
+                        <button id="unloadBiosBtn" class="btn-secondary" style="width: 100%; margin-top: 10px; padding: 6px 12px; font-size: 0.85em;">
+                            🗑️ Descargar BIOS
+                        </button>
+                    </div>
+
+                    <!-- BIOS Help Text -->
+                    <div style="background: rgba(0,255,65,0.05); border: 1px solid rgba(0,255,65,0.2); border-radius: 4px; padding: 8px; font-size: 0.8em; color: var(--text-secondary); line-height: 1.5;">
+                        <div style="color: var(--success); font-weight: bold; margin-bottom: 4px;">ℹ️ Archivos BIOS Soportados</div>
+                        <div>• <strong>msxbios.rom</strong> - BIOS principal (16-32 KB)</div>
+                        <div>• <strong>msx2bios.rom</strong> - Extensión MSX2 (16-32 KB)</div>
+                        <div>• <strong>msx2ext.rom</strong> - Extensión adicional (16 KB)</div>
+                        <div>• <strong>basic.rom</strong> - Intérprete BASIC (32 KB)</div>
+                        <div style="margin-top: 4px; color: var(--text-secondary); font-size: 0.75em;">Tamaños válidos: 8KB, 16KB, 32KB, 64KB</div>
+                    </div>
+                </div>
+
             <!-- Advanced Options Panel -->
             <div class="advanced-options" style="display: none;" id="advancedPanel">
                 <div class="advanced-options-toggle" id="advToggle">
@@ -1503,6 +1554,138 @@
         document.getElementById('glowIntensity').addEventListener('input', (e) => {
             document.getElementById('glowValue').textContent = e.target.value;
         });
+
+        // ═══════════════════════════════════════════════════════════════
+        // GESTIÓN DE ARCHIVOS BIOS
+        // ═══════════════════════════════════════════════════════════════
+
+        let currentBiosData = null;
+        let currentBiosInfo = null;
+
+        const biosInput = document.getElementById('biosInput');
+        const loadBiosBtn = document.getElementById('loadBiosBtn');
+        const unloadBiosBtn = document.getElementById('unloadBiosBtn');
+
+        // Usuario selecciona archivo BIOS
+        biosInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleBiosFileSelect(file);
+            }
+        });
+
+        // Habilitar botón cuando hay archivo
+        function handleBiosFileSelect(file) {
+            const validSizes = [0x2000, 0x4000, 0x8000, 0x10000];  // 8KB, 16KB, 32KB, 64KB
+            
+            if (!validSizes.includes(file.size)) {
+                showBiosStatus(`❌ Tamaño inválido: ${Math.round(file.size / 1024)}KB. Válidos: 8KB, 16KB, 32KB, 64KB`, 'error');
+                loadBiosBtn.disabled = true;
+                return;
+            }
+            
+            showBiosStatus(`📂 Archivo seleccionado: ${file.name} (${Math.round(file.size / 1024)}KB)`, 'success');
+            loadBiosBtn.disabled = false;
+        }
+
+        // Cargar BIOS en la memoria del procesador
+        loadBiosBtn.addEventListener('click', async () => {
+            const file = biosInput.files[0];
+            if (!file) return;
+
+            try {
+                showBiosStatus('⏳ Cargando BIOS...', 'loading');
+                
+                const arrayBuffer = await file.arrayBuffer();
+                const biosData = new Uint8Array(arrayBuffer);
+                
+                // Convertir a array para pasar a Rust
+                const biosArray = Array.from(biosData);
+                
+                // Llamar función Rust para cargar BIOS
+                const result = processor.load_bios(biosArray, file.name, 'auto');
+                
+                console.log('✅ Resultado de carga BIOS:', result);
+                
+                // Obtener información del BIOS cargado
+                const biosInfoJson = processor.get_current_bios_info();
+                const biosInfo = JSON.parse(biosInfoJson);
+                
+                if (biosInfo.loaded) {
+                    currentBiosData = biosData;
+                    currentBiosInfo = biosInfo;
+                    
+                    // Mostrar información en la interfaz
+                    displayBiosInfo(biosInfo);
+                    showBiosStatus('✅ ' + result, 'success');
+                    
+                    // Log detallado
+                    const description = processor.get_bios_description();
+                    console.log(description);
+                    
+                    // Deshabilitar input, habilitar descarga
+                    loadBiosBtn.disabled = true;
+                    unloadBiosBtn.style.display = 'block';
+                    biosInput.disabled = true;
+                } else {
+                    showBiosStatus('❌ Error al cargar BIOS', 'error');
+                    loadBiosBtn.disabled = true;
+                }
+            } catch (err) {
+                console.error('❌ Error:', err);
+                showBiosStatus(`❌ Error: ${err.message}`, 'error');
+                loadBiosBtn.disabled = true;
+            }
+        });
+
+        // Descargar BIOS
+        unloadBiosBtn.addEventListener('click', () => {
+            try {
+                const result = processor.unload_bios();
+                console.log(result);
+                
+                currentBiosData = null;
+                currentBiosInfo = null;
+                
+                // Ocultar información
+                document.getElementById('biosInfo').style.display = 'none';
+                document.getElementById('biosStatus').style.display = 'none';
+                
+                // Limpiar input, habilitar carga
+                biosInput.value = '';
+                biosInput.disabled = false;
+                loadBiosBtn.disabled = true;
+                unloadBiosBtn.style.display = 'none';
+                
+                showBiosStatus(result, 'success');
+                hideStatusAfter(3000);
+            } catch (err) {
+                console.error('❌ Error descargando BIOS:', err);
+                showBiosStatus(`❌ Error: ${err.message}`, 'error');
+            }
+        });
+
+        // Mostrar información de BIOS en la interfaz
+        function displayBiosInfo(biosInfo) {
+            const infoPanel = document.getElementById('biosInfo');
+            document.getElementById('biosName').textContent = biosInfo.filename;
+            document.getElementById('biosSize').textContent = formatBytes(biosInfo.size);
+            document.getElementById('biosType').textContent = biosInfo.type;
+            document.getElementById('biosChecksum').textContent = biosInfo.checksum;
+            infoPanel.style.display = 'block';
+        }
+
+        // Mostrar estado BIOS
+        function showBiosStatus(message, type) {
+            const statusEl = document.getElementById('biosStatus');
+            statusEl.innerHTML = `
+                <div class="status ${type}">
+                    <span class="status-dot"></span>
+                    <span>${message}</span>
+                </div>
+            `;
+            statusEl.style.display = 'block';
+        }
 
         // ═══════════════════════════════════════════════════════════════
         // VARIABLES DE ESTADO DE MEMORIA

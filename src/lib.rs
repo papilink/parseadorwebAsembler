@@ -10,6 +10,118 @@ use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
 
 // ═══════════════════════════════════════════════════════════════
+// GESTIÓN DE BIOS MSX2
+// ═══════════════════════════════════════════════════════════════
+
+#[wasm_bindgen]
+pub struct BiosInfo {
+    filename: String,
+    size: u32,
+    loaded: bool,
+    bios_type: String,
+    checksum: String,
+}
+
+#[wasm_bindgen]
+impl BiosInfo {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        filename: String,
+        size: u32,
+        loaded: bool,
+        bios_type: String,
+        checksum: String,
+    ) -> BiosInfo {
+        BiosInfo {
+            filename,
+            size,
+            loaded,
+            bios_type,
+            checksum,
+        }
+    }
+
+    pub fn get_filename(&self) -> String {
+        self.filename.clone()
+    }
+
+    pub fn get_size(&self) -> u32 {
+        self.size
+    }
+
+    pub fn is_loaded(&self) -> bool {
+        self.loaded
+    }
+
+    pub fn get_bios_type(&self) -> String {
+        self.bios_type.clone()
+    }
+
+    pub fn get_checksum(&self) -> String {
+        self.checksum.clone()
+    }
+}
+
+#[wasm_bindgen]
+pub struct BiosValidator {
+    valid_sizes: Vec<u32>,
+    valid_types: Vec<String>,
+}
+
+#[wasm_bindgen]
+impl BiosValidator {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> BiosValidator {
+        BiosValidator {
+            // Tamaños válidos de BIOS MSX2 (en bytes)
+            valid_sizes: vec![
+                0x2000,   // 8 KB
+                0x4000,   // 16 KB
+                0x8000,   // 32 KB
+                0x10000,  // 64 KB
+            ],
+            // Tipos de BIOS válidos
+            valid_types: vec![
+                "msxbios".to_string(),    // BIOS principal
+                "msx2bios".to_string(),   // BIOS MSX2
+                "msx2ext".to_string(),    // Extensión MSX2
+                "kanji".to_string(),      // Kanji ROM
+                "basic".to_string(),      // BASIC ROM
+            ],
+        }
+    }
+
+    /// Validar si el tamaño del archivo es válido
+    pub fn is_valid_size(&self, size: u32) -> bool {
+        self.valid_sizes.contains(&size)
+    }
+
+    /// Validar si el tipo es reconocido
+    pub fn is_valid_type(&self, bios_type: &str) -> bool {
+        self.valid_types
+            .iter()
+            .any(|t| t.eq_ignore_ascii_case(bios_type))
+    }
+
+    /// Detectar tipo de BIOS por tamaño
+    pub fn detect_bios_type(&self, size: u32) -> String {
+        match size {
+            0x2000 => "Pequeño (8KB)".to_string(),
+            0x4000 => "Estándar (16KB)".to_string(),
+            0x8000 => "Completo (32KB)".to_string(),
+            0x10000 => "Extendido (64KB)".to_string(),
+            _ => format!("Desconocido ({}KB)", size / 1024),
+        }
+    }
+
+    /// Calcular checksum simple (suma de bytes)
+    pub fn calculate_checksum(&self, data: &[u8]) -> String {
+        let checksum: u32 = data.iter().map(|&b| b as u32).sum();
+        format!("{:08X}", checksum)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // MAPA DE MEMORIA DEL MSX2
 // ═══════════════════════════════════════════════════════════════
 
@@ -113,6 +225,8 @@ pub struct MSX2Processor {
     width: usize,
     height: usize,
     memory_map: HashMap<String, MemoryMapSlot>,
+    bios_data: Vec<u8>,
+    current_bios: Option<BiosInfo>,
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -167,6 +281,8 @@ impl MSX2Processor {
             width: width as usize,
             height: height as usize,
             memory_map,
+            bios_data: Vec::new(),
+            current_bios: None,
         }
     }
 
@@ -206,6 +322,113 @@ impl MSX2Processor {
             end_address,
             memory_slot,
         )
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // MÉTODOS PARA GESTIÓN DE BIOS MSX2
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Cargar archivo BIOS en la memoria
+    pub fn load_bios(&mut self, bios_data: &[u8], filename: &str, _bios_type: &str) -> String {
+        let validator = BiosValidator::new();
+        let size = bios_data.len() as u32;
+
+        // Validar tamaño
+        if !validator.is_valid_size(size) {
+            return format!(
+                "❌ Error: Tamaño BIOS inválido ({} bytes). Tamaños válidos: 8KB, 16KB, 32KB, 64KB",
+                size
+            );
+        }
+
+        // Calcular checksum
+        let checksum = validator.calculate_checksum(bios_data);
+        let detected_type = validator.detect_bios_type(size);
+
+        // Crear información BIOS
+        let bios_info = BiosInfo::new(
+            filename.to_string(),
+            size,
+            true,
+            detected_type,
+            checksum.clone(),
+        );
+
+        // Guardar datos y información
+        self.bios_data = bios_data.to_vec();
+        self.current_bios = Some(bios_info);
+
+        format!(
+            "✅ BIOS cargado: {} ({} bytes) - Checksum: {}",
+            filename, size, checksum
+        )
+    }
+
+    /// Obtener información del BIOS cargado actualmente
+    pub fn get_current_bios_info(&self) -> String {
+        match &self.current_bios {
+            Some(info) => format!(
+                r#"{{"filename":"{}","size":{},"type":"{}","checksum":"{}","loaded":true}}"#,
+                info.get_filename(),
+                info.get_size(),
+                info.get_bios_type(),
+                info.get_checksum()
+            ),
+            None => r#"{"loaded":false,"message":"No hay BIOS cargado"}"#.to_string(),
+        }
+    }
+
+    /// Obtener los datos del BIOS en formato Base64 para transmisión
+    pub fn get_bios_data(&self) -> Vec<u8> {
+        self.bios_data.clone()
+    }
+
+    /// Verificar si hay BIOS cargado
+    pub fn has_bios_loaded(&self) -> bool {
+        self.current_bios.is_some()
+    }
+
+    /// Descargar BIOS actual
+    pub fn unload_bios(&mut self) -> String {
+        if let Some(info) = &self.current_bios {
+            let filename = info.get_filename();
+            self.bios_data.clear();
+            self.current_bios = None;
+            format!("✅ BIOS '{}' descargado correctamente", filename)
+        } else {
+            "ℹ️ No había BIOS cargado".to_string()
+        }
+    }
+
+    /// Obtener descripción completa del BIOS para debugging
+    pub fn get_bios_description(&self) -> String {
+        match &self.current_bios {
+            Some(info) => {
+                format!(
+                    "📋 INFORMACIÓN BIOS\n━━━━━━━━━━━━━━━━━━━━━━\n\
+                    Archivo: {}\n\
+                    Tamaño: {} bytes\n\
+                    Tipo: {}\n\
+                    Checksum: {}\n\
+                    Estado: {}\n\
+                    Ubicación: Slot 0 (0x0000-0x3FFF)",
+                    info.get_filename(),
+                    info.get_size(),
+                    info.get_bios_type(),
+                    info.get_checksum(),
+                    if info.is_loaded() { "✅ CARGADO" } else { "❌ NO CARGADO" }
+                )
+            }
+            None => "❌ No hay BIOS cargado en el sistema".to_string(),
+        }
+    }
+
+    /// Validar integridad BIOS comparando checksums
+    pub fn validate_bios_checksum(&self, expected_checksum: &str) -> bool {
+        match &self.current_bios {
+            Some(info) => info.get_checksum().eq_ignore_ascii_case(expected_checksum),
+            None => false,
+        }
     }
 
     /// Convierte MSX2 4bpp a RGBA 32bpp

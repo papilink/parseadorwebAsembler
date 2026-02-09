@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Test - Sistema BIOS MSX2</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #00ff41;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border: 2px solid #00ff41;
+            border-radius: 8px;
+        }
+        h1 {
+            color: #00ff6a;
+            text-shadow: 0 0 20px #00ff41;
+            margin-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0,255,65,0.05);
+            border-left: 3px solid #00ff41;
+            border-radius: 4px;
+        }
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .test-case.pass {
+            border-left: 3px solid #00ff41;
+        }
+        .test-case.fail {
+            border-left: 3px solid #ff006e;
+            color: #ff006e;
+        }
+        .test-case.loading {
+            border-left: 3px solid #ffa500;
+            color: #ffa500;
+        }
+        button {
+            background: #00ff41;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 8px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #00ff6a;
+            box-shadow: 0 0 20px rgba(0,255,65,0.5);
+        }
+        .output {
+            background: #000;
+            padding: 10px;
+            border: 1px solid #00ff41;
+            border-radius: 4px;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 0.8em;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Suite - Sistema BIOS MSX2</h1>
+        <p>Tests de validación para la implementación de carga BIOS</p>
+
+        <!-- Sección 1: Inicialización -->
+        <div class="section">
+            <h2>1️⃣ Inicialización WASM</h2>
+            <div class="test-case loading" id="test-init">
+                ⏳ Inicializando WebAssembly...
+            </div>
+            <div class="output" id="init-output" style="display: none;"></div>
+        </div>
+
+        <!-- Sección 2: Estructuras -->
+        <div class="section">
+            <h2>2️⃣ Obtención de Información BIOS</h2>
+            <div class="test-case" id="test-info">
+                ⏳ Pendiente
+            </div>
+            <div class="output" id="info-output" style="display: none;"></div>
+        </div>
+
+        <!-- Sección 3: Validación -->
+        <div class="section">
+            <h2>3️⃣ Validación de Tamaños</h2>
+            <div id="validation-tests"></div>
+        </div>
+
+        <!-- Sección 4: Carga Manual -->
+        <div class="section">
+            <h2>4️⃣ Test de Carga Manual</h2>
+            <p>Genera un archivo BIOS ficticio para pruebas</p>
+            <button onclick="testCreateBios()">📝 Crear BIOS Ficticio (16KB)</button>
+            <button onclick="testLoadBios()">💾 Cargar BIOS Creado</button>
+            <button onclick="testUnloadBios()">🗑️ Descargar BIOS</button>
+            <div class="test-case" id="test-load">
+                Esperando acciones del usuario
+            </div>
+            <div class="output" id="load-output" style="display: none;"></div>
+        </div>
+
+        <!-- Sección 5: Métodos -->
+        <div class="section">
+            <h2>5️⃣ Métodos Disponibles</h2>
+            <div id="methods-list"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { MSX2Processor, BiosValidator } from './pkg/msx2_processor.js';
+
+        let processor = null;
+        let testBiosData = null;
+
+        // Utilidad para logging
+        function log(elementId, message, type = 'info') {
+            const elem = document.getElementById(elementId);
+            if (elem) {
+                elem.style.display = 'block';
+                elem.textContent += message + '\n';
+                elem.scrollTop = elem.scrollHeight;
+            }
+            console.log(message);
+        }
+
+        function updateTest(testId, message, status) {
+            const elem = document.getElementById(testId);
+            if (elem) {
+                elem.className = 'test-case ' + status;
+                elem.textContent = message;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST 1: Inicialización
+        // ═══════════════════════════════════════════════════════════════
+
+        async function initializeWasm() {
+            try {
+                console.log('🚀 Iniciando pruebas...');
+                log('init-output', '🚀 Iniciando WebAssembly...\n');
+
+                await init();
+                processor = new MSX2Processor(256, 212);
+
+                updateTest('test-init', '✅ WASM inicializado correctamente', 'pass');
+                log('init-output', '✅ WASM cargado exitosamente');
+                log('init-output', '✅ MSX2Processor creado (256x212)');
+
+                // Ejecutar tests siguientes
+                runValidationTests();
+                showMethods();
+
+            } catch (err) {
+                updateTest('test-init', '❌ Error: ' + err.message, 'fail');
+                log('init-output', '❌ Error: ' + err.message);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST 2: Información BIOS
+        // ═══════════════════════════════════════════════════════════════
+
+        function testBiosInfo() {
+            try {
+                log('info-output', 'Verificando estado inicial...\n');
+
+                if (!processor.has_bios_loaded()) {
+                    log('info-output', '✅ Al inicio: No hay BIOS cargado (correcto)');
+                } else {
+                    log('info-output', '❌ Al inicio: Debería estar vacío');
+                }
+
+                const info = processor.get_current_bios_info();
+                log('info-output', '\n📋 Información actual:\n' + info);
+
+                updateTest('test-info', '✅ Métodos de información funcionan', 'pass');
+            } catch (err) {
+                updateTest('test-info', '❌ Error: ' + err.message, 'fail');
+                log('info-output', '❌ Error: ' + err.message);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST 3: Validación de Tamaños
+        // ═══════════════════════════════════════════════════════════════
+
+        function runValidationTests() {
+            const validSizes = [0x2000, 0x4000, 0x8000, 0x10000];
+            const validNames = ['8KB', '16KB', '32KB', '64KB'];
+            const invalidSizes = [0x1000, 0x3500, 0x5000, 0xFFFF];
+
+            const container = document.getElementById('validation-tests');
+            container.innerHTML = '<strong>Tamaños Válidos:</strong>\n';
+
+            validSizes.forEach((size, i) => {
+                const validator = new BiosValidator();
+                const isValid = validator.is_valid_size(size);
+                const type = validator.detect_bios_type(size);
+
+                const status = isValid ? 'pass' : 'fail';
+                const result = isValid ? `✅ ${validNames[i]} válido` : `❌ Error`;
+
+                container.innerHTML += `<div class="test-case ${status}">${result} - ${type}</div>`;
+            });
+
+            container.innerHTML += '<br><strong>Tamaños Inválidos (deben fallar):</strong>\n';
+
+            invalidSizes.forEach((size) => {
+                const validator = new BiosValidator();
+                const isInvalid = !validator.is_valid_size(size);
+                const status = isInvalid ? 'pass' : 'fail';
+                const result = isInvalid ? `✅ Rechazado (${size} bytes)` : `❌ No debería ser válido`;
+
+                container.innerHTML += `<div class="test-case ${status}">${result}</div>`;
+            });
+
+            testBiosInfo();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST 4: Funciones de Usuario
+        // ═══════════════════════════════════════════════════════════════
+
+        window.testCreateBios = function() {
+            try {
+                const size = 16384; // 16KB
+                testBiosData = new Uint8Array(size);
+
+                // Llenar con datos aleatorios determinísticos
+                for (let i = 0; i < size; i++) {
+                    testBiosData[i] = Math.floor((Math.sin(i / 100) + 1) * 127.5);
+                }
+
+                updateTest('test-load', `✅ BIOS ficticio creado (${Math.round(size / 1024)}KB)`, 'pass');
+                log('load-output', `✅ BIOS ficticio creado: ${size} bytes`);
+                log('load-output', `📊 Primeros 16 bytes: ${Array.from(testBiosData.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+            } catch (err) {
+                updateTest('test-load', '❌ Error: ' + err.message, 'fail');
+            }
+        };
+
+        window.testLoadBios = function() {
+            try {
+                if (!testBiosData) {
+                    updateTest('test-load', '❌ Primero crea un BIOS ficticio', 'fail');
+                    return;
+                }
+
+                updateTest('test-load', '⏳ Cargando BIOS...', 'loading');
+                log('load-output', '\n⏳ Procesando carga de BIOS...');
+
+                // Convertir a array para Rust
+                const biosArray = Array.from(testBiosData);
+
+                // Cargar en el procesador
+                const result = processor.load_bios(biosArray, 'test_bios.rom', 'auto');
+                log('load-output', '\n' + result);
+
+                // Obtener información
+                const info = JSON.parse(processor.get_current_bios_info());
+                log('load-output', '\n📋 BIOS Cargado:');
+                log('load-output', JSON.stringify(info, null, 2));
+
+                // Verificación
+                if (processor.has_bios_loaded()) {
+                    log('load-output', '\n✅ Verificación: BIOS está cargado');
+                    updateTest('test-load', '✅ BIOS cargado exitosamente', 'pass');
+                } else {
+                    log('load-output', '\n❌ Verificación: No se detectó carga');
+                    updateTest('test-load', '❌ Error en validación', 'fail');
+                }
+
+                // Descripción
+                const desc = processor.get_bios_description();
+                log('load-output', '\n' + desc);
+
+            } catch (err) {
+                updateTest('test-load', '❌ Error: ' + err.message, 'fail');
+                log('load-output', '❌ Error: ' + err.message);
+            }
+        };
+
+        window.testUnloadBios = function() {
+            try {
+                if (!processor.has_bios_loaded()) {
+                    log('load-output', '\n⚠️ No hay BIOS cargado para descargar');
+                    return;
+                }
+
+                updateTest('test-load', '⏳ Descargando BIOS...', 'loading');
+                log('load-output', '\n⏳ Descargando BIOS...');
+
+                const result = processor.unload_bios();
+                log('load-output', result);
+
+                if (!processor.has_bios_loaded()) {
+                    log('load-output', '✅ Verificación: BIOS descargado correctamente');
+                    updateTest('test-load', '✅ BIOS descargado', 'pass');
+                } else {
+                    log('load-output', '❌ Error: BIOS aún presente');
+                    updateTest('test-load', '❌ Error en descarga', 'fail');
+                }
+            } catch (err) {
+                updateTest('test-load', '❌ Error: ' + err.message, 'fail');
+                log('load-output', '❌ Error: ' + err.message);
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // TEST 5: Métodos Disponibles
+        // ═══════════════════════════════════════════════════════════════
+
+        function showMethods() {
+            const methods = [
+                { name: 'load_bios()', desc: 'Cargar BIOS en memoria' },
+                { name: 'get_current_bios_info()', desc: 'Obtener info como JSON' },
+                { name: 'has_bios_loaded()', desc: 'Verificar si hay BIOS' },
+                { name: 'get_bios_data()', desc: 'Obtener bytes de BIOS' },
+                { name: 'unload_bios()', desc: 'Descargar BIOS' },
+                { name: 'get_bios_description()', desc: 'Descripción formateada' },
+                { name: 'validate_bios_checksum()', desc: 'Validar integridad' }
+            ];
+
+            const container = document.getElementById('methods-list');
+            methods.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'test-case pass';
+                div.innerHTML = `<strong>${m.name}</strong> - ${m.desc}`;
+                container.appendChild(div);
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INICIAR TESTS
+        // ═══════════════════════════════════════════════════════════════
+
+        initializeWasm();
+    </script>
+</body>
+</html>
